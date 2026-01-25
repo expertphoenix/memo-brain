@@ -1,20 +1,85 @@
-# Rust
-/target
+# Rust 构建产物
+/target/
 **/*.rs.bk
-Cargo.lock
+*.pdb
 
-# IDE
-.idea/
-.vscode/
+# Cargo 锁文件（对于库项目，通常忽略；对于可执行项目，建议提交）
+# 本项目是 CLI 工具，保留 Cargo.lock
+# Cargo.lock
+
+# 编译产物
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+
+# 临时文件
 *.swp
 *.swo
-
-# OS
+*~
 .DS_Store
 Thumbs.db
 
-# Logs
+# IDE 和编辑器
+.idea/
+.vscode/
+*.iml
+*.sublime-*
+.vs/
+.vscode-test/
+
+# Rust Analyzer
+.rust-analyzer/
+
+# 调试文件
+*.dSYM/
 *.log
+
+# 测试覆盖率
+*.profraw
+*.profdata
+/tarpaulin-report.html
+/cobertura.xml
+
+# 性能分析
+perf.data
+perf.data.old
+flamegraph.svg
+
+# 备份文件
+*.bak
+*.orig
+
+# 操作系统文件
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+Desktop.ini
+$RECYCLE.BIN/
+
+# Flycheck (Emacs)
+/flycheck*/
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+
+# 文档生成
+/doc/
+target/doc/
+
+# 基准测试结果
+/benches/results/
+
+# 缓存目录
+.cache/
+
+# 测试输出
+test-output/
 
 # Database (optional - uncomment if you want to ignore local DB)
 # *.lancedb/
@@ -23,9 +88,3 @@ Thumbs.db
 # Model cache (optional - uncomment if you want to ignore model cache)
 # ~/.cache/memo-cli/
 
-# Environment
-.env
-.env.local
-
-# Test output
-test-output/
