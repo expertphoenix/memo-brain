@@ -124,7 +124,8 @@ impl Output {
 
     /// 显示搜索结果项
     /// 格式: "[0.89] Title (2024-01-22 14:30)"
-    ///       "    Content preview..."
+    ///       "       Content line 1"
+    ///       "       Content line 2"
     pub fn search_result(&self, score: f32, title: &str, date: &str, content: &str) {
         println!(
             "[{}] {} {}",
@@ -133,24 +134,35 @@ impl Output {
             self.dim.apply_to(format!("({})", date))
         );
 
-        let preview = self.format_content_preview(content);
-        println!("    {}", self.dim.apply_to(preview));
+        // 全文显示，每行保持与标题对齐的缩进（7个空格）
+        // [0.71] <- 6个字符 + 1个空格 = 7
+        for line in content.lines() {
+            println!("       {}", line);
+        }
         println!();
     }
 
     /// 显示列表项
     /// 格式: "[1/10] Title (2024-01-22)"
-    ///       "    Content preview..."
+    ///       "       Content line 1"
+    ///       "       Content line 2"
     pub fn list_item(&self, index: usize, total: usize, title: &str, date: &str, content: &str) {
+        let index_str = format!("{}/{}", index, total);
         println!(
             "[{}] {} {}",
-            self.dim.apply_to(format!("{}/{}", index, total)),
+            self.dim.apply_to(&index_str),
             self.bold.apply_to(title),
             self.dim.apply_to(format!("({})", date))
         );
 
-        let preview = self.format_content_preview(content);
-        println!("    {}", self.dim.apply_to(preview));
+        // 全文显示，每行保持与标题对齐的缩进
+        // [1/10] <- 长度可变，需要动态计算
+        let indent_width = index_str.len() + 3; // [index/total] + 空格 = len + 2 + 1
+        let indent = " ".repeat(indent_width);
+        
+        for line in content.lines() {
+            println!("{}{}", indent, line);
+        }
         println!();
     }
 
