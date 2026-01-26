@@ -165,6 +165,11 @@ impl Output {
             message
         );
     }
+
+    /// 显示提示消息（标准输出，右对齐）
+    pub fn info(&self, message: &str) {
+        println!("{:>12} {}", "", message);
+    }
 }
 
 impl Default for Output {

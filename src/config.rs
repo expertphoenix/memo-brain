@@ -2,8 +2,30 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+// 默认值函数
+fn default_brain_path() -> PathBuf {
+    Config::global_memo_dir().join("brain")
+}
+
+fn default_embedding_api_key() -> String {
+    String::new()
+}
+
+fn default_embedding_model() -> String {
+    "text-embedding-3-small".to_string()
+}
+
+fn default_search_limit() -> usize {
+    5
+}
+
+fn default_similarity_threshold() -> f32 {
+    0.7
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
+    #[serde(default = "default_brain_path")]
     pub brain_path: PathBuf,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_cache_dir: Option<PathBuf>,
@@ -13,13 +35,17 @@ pub struct Config {
     pub embedding_provider: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embedding_base_url: Option<String>,
+    #[serde(default = "default_embedding_api_key")]
     pub embedding_api_key: String,
+    #[serde(default = "default_embedding_model")]
     pub embedding_model: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embedding_dimension: Option<usize>,
     
     // 搜索配置
+    #[serde(default = "default_search_limit")]
     pub search_limit: usize,
+    #[serde(default = "default_similarity_threshold")]
     pub similarity_threshold: f32,
 }
 
@@ -60,7 +86,29 @@ impl Config {
     }
 
     /// 检查本地配置是否存在
+    /// 注意：如果当前目录是用户主目录，则不认为是本地配置
     pub fn has_local_config() -> bool {
+        // 获取当前目录
+        let current_dir = match std::env::current_dir() {
+            Ok(dir) => dir,
+            Err(_) => return false,
+        };
+        
+        // 获取全局 .memo 目录的父目录（用户主目录）
+        let global_parent = Self::global_memo_dir().parent().map(|p| p.to_path_buf());
+        
+        // 如果当前目录就是用户主目录，不应该被当作本地配置
+        if let Some(home) = global_parent {
+            // 使用 canonicalize 解析符号链接，但如果失败就直接比较
+            let current_canonical = current_dir.canonicalize().unwrap_or(current_dir.clone());
+            let home_canonical = home.canonicalize().unwrap_or(home);
+            
+            if current_canonical == home_canonical {
+                return false;
+            }
+        }
+        
+        // 检查本地配置文件是否存在
         Self::local_memo_dir().join("config.toml").exists()
     }
 
@@ -145,9 +193,9 @@ impl Config {
 
     /// 加载配置：优先本地配置，其次全局配置，最后默认配置
     pub fn load() -> Result<Self> {
-        // 1. 尝试本地配置
+        // 1. 尝试本地配置（排除用户主目录）
         let local_config_path = Self::local_memo_dir().join("config.toml");
-        if local_config_path.exists() {
+        if Self::has_local_config() {
             let content = std::fs::read_to_string(&local_config_path).with_context(|| {
                 format!(
                     "Failed to read local config file: {}",

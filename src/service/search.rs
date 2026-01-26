@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use chrono::{DateTime, NaiveDateTime};
+use console::Style;
 use futures::TryStreamExt;
 use lancedb::query::{ExecutableQuery, QueryBase};
 
@@ -29,17 +30,36 @@ pub async fn search(
     let table = TableOperations::open_table(conn.inner(), "memories").await?;
     let record_count = table.count_rows(None).await.unwrap_or(0);
 
-    // 检查 API key
-    if config.embedding_api_key.is_empty() {
-        anyhow::bail!(
-            "Embedding API key not configured.\n\
-            \n\
-            Please set it in config file (~/.memo/config.toml):\n\
-            \n\
-            [embedding]\n\
-            api_key = \"your-api-key-here\"\n\
-            model = \"text-embedding-3-small\"\n"
-        );
+    // 检查 API key（Ollama 不需要）
+    let is_ollama = config.embedding_provider.as_ref()
+        .map(|p| p.to_lowercase() == "ollama")
+        .unwrap_or_else(|| {
+            config.embedding_base_url.as_ref()
+                .map(|url| url.contains("ollama") || url.contains("11434"))
+                .unwrap_or(false)
+        });
+
+    if !is_ollama && config.embedding_api_key.is_empty() {
+        eprintln!();
+        output.warning("Embedding API key not configured");
+        eprintln!();
+        eprintln!("  请运行以下命令创建配置文件：");
+        eprintln!("    {}", Style::new().cyan().apply_to("memo init"));
+        eprintln!();
+        eprintln!("  然后编辑配置文件并设置你的 API key：");
+        eprintln!("    {}", Style::new().dim().apply_to(
+            if force_local {
+                "./.memo/config.toml"
+            } else {
+                "~/.memo/config.toml"
+            }
+        ));
+        eprintln!();
+        eprintln!("  配置示例：");
+        eprintln!("    {}", Style::new().dim().apply_to("embedding_api_key = \"sk-...\""));
+        eprintln!("    {}", Style::new().dim().apply_to("embedding_model = \"text-embedding-3-small\""));
+        eprintln!();
+        anyhow::bail!("Missing required configuration");
     }
 
     // 显示数据库信息
@@ -166,7 +186,7 @@ pub async fn search(
     }
 
     if results.is_empty() {
-        println!("{:>12} No results found above threshold {:.2}", "", threshold);
+        output.info(&format!("No results found above threshold {:.2}", threshold));
     }
 
     Ok(())

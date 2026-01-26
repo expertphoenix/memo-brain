@@ -23,7 +23,7 @@ pub async fn list(force_local: bool, force_global: bool) -> Result<()> {
 
     if record_count == 0 {
         eprintln!();
-        println!("{:>12} No memories found. Use 'memo embed' to add some!", "");
+        output.info("No memories found. Use 'memo embed' to add some!");
         return Ok(());
     }
 

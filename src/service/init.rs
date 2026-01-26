@@ -67,31 +67,20 @@ pub async fn initialize(local: bool) -> Result<()> {
     Ok(())
 }
 
-/// 自动初始化（带提示）
-/// 确保数据库目录和配置文件存在
+/// 自动初始化（静默模式）
+/// 确保数据库目录和表存在，不生成配置文件
 /// 返回是否进行了初始化
 pub async fn ensure_initialized() -> Result<bool> {
-    let output = Output::new();
     let config = Config::load()?;
     let mut initialized = false;
 
-    // 如果全局配置文件不存在，保存默认配置
-    let global_config_path = Config::global_memo_dir().join("config.toml");
-    if !global_config_path.exists() {
-        config.ensure_dirs()?;
-        config.save()?;
-        output.resource_action("Creating", "config", &global_config_path);
-        initialized = true;
-    } else {
-        config.ensure_dirs()?;
-    }
+    // 确保必要的目录存在
+    config.ensure_dirs()?;
 
     // 确保 memories 表存在
     let conn = Connection::connect(config.brain_path.to_str().unwrap()).await?;
-    let db_path = config.brain_path.join("memories.lance");
     if !TableOperations::table_exists(conn.inner(), "memories").await {
         TableOperations::create_table(conn.inner(), "memories").await?;
-        output.resource_action("Creating", "database", &db_path);
         initialized = true;
     }
 
