@@ -1,11 +1,15 @@
-# Memo CLI - Vector-based Knowledge Base
+# Memo CLI - 向量记忆库
 
-基于向量数据库的高性能语义搜索知识库工具。支持 **OpenAI 兼容 API**，并提供 **AI Agent Skill** 以无缝集成各类 AI 编码助手。
+基于向量数据库的高性能语义搜索记忆库工具。支持 **OpenAI 兼容 API**，并提供 **AI Agent Skill** 以无缝集成各类 AI 编码助手。
+
+中文 | [English](../../README.md)
 
 ## ✨ 特性
 
 - 🔍 **语义搜索** - 基于向量相似度的智能搜索，而非简单的关键词匹配
 - 🤖 **AI Agent 集成** - 内置 Skill，支持 Cursor、Windsurf、Claude Code 等 AI 编码工具
+- 🧠 **智能重复检测** - 自动检测相似记忆，避免重复添加
+- 🔄 **记忆管理** - 更新、删除、合并记忆，便于组织整理
 - 🏷️ **标签管理** - 支持标签分类和 Markdown frontmatter 自动合并
 - ⏰ **时间过滤** - 按时间范围筛选记忆，支持灵活的日期格式
 - 📝 **Markdown 支持** - 自动解析和索引带 frontmatter 的 markdown 文件
@@ -17,11 +21,14 @@
 
 | 命令 | 功能 | 示例 |
 |------|------|------|
-| `memo embed <input>` | 嵌入文本/文件/目录到向量数据库 | `memo embed "笔记内容" --tags rust,cli` |
+| `memo init` | 初始化配置（可选） | `memo init --local` |
+| `memo embed <input>` | 嵌入文本/文件/目录 | `memo embed "笔记内容" --tags rust,cli` |
 | `memo search <query>` | 语义搜索记忆 | `memo search "Rust 最佳实践" --after 2026-01-20` |
 | `memo list` | 列出所有记忆 | `memo list` |
-| `memo clear` | 清空数据库（危险操作） | `memo clear --local --force` |
-| `memo init` | 初始化配置（可选） | `memo init --local` |
+| `memo update <id>` | 更新已有记忆 | `memo update abc123 --content "新内容"` |
+| `memo delete <id>` | 删除记忆 | `memo delete abc123` |
+| `memo merge <ids>...` | 合并多条记忆 | `memo merge id1 id2 id3 --content "整合内容"` |
+| `memo clear` | 清空数据库（危险） | `memo clear --local --force` |
 
 **常用参数：**
 - `-t, --tags` - 添加标签（逗号分隔）
@@ -111,6 +118,8 @@ cp -r skills/memo-brain ~/.windsurf/skills/
 | `embedding_base_url` | ❌ | API 端点 | `https://api.openai.com/v1` |
 | `embedding_provider` | ❌ | 提供商类型 | 自动推断 |
 | `embedding_dimension` | ❌ | 向量维度 | 自动推断 |
+| `similarity_threshold` | ❌ | 搜索相似度阈值（0-1） | `0.7` |
+| `duplicate_threshold` | ❌ | 重复检测相似度阈值（0-1） | `0.85` |
 
 ### 支持的 API 类型
 
@@ -204,165 +213,43 @@ memo search "rust async trait 问题" -n 5
 memo search "数据库优化" --after 2026-01-20
 ```
 
-查看 [skills/memo-brain/SKILL.md](../skills/memo-brain/SKILL.md) 了解详细使用指南。
-
-## 📚 命令详解
-
-### `memo embed` - 嵌入记忆
-
-将文本、文件或目录嵌入向量数据库。
-
-```bash
-memo embed <input> [OPTIONS]
-```
-
-| 参数/选项 | 说明 |
-|----------|------|
-| `<input>` | 文本字符串、文件路径或目录路径 |
-| `-t, --tags` | 添加标签（逗号分隔，如：`rust,cli`） |
-| `-l, --local` | 使用本地数据库 `./.memo/brain` |
-| `-g, --global` | 使用全局数据库 `~/.memo/brain` |
-
-**示例：**
-```bash
-memo embed "重要笔记" --tags work,important
-memo embed notes.md --tags rust,learning
-memo embed ./docs --tags documentation
-```
-
-**💡 Markdown 文件标签合并：**
-
-Markdown 文件的 frontmatter 标签会与命令行标签自动合并去重：
-
-```markdown
----
-tags: [rust, cli]
----
-```
-
-执行 `memo embed file.md --tags important` → 最终标签：`[rust, cli, important]`
+查看 [skills/memo-brain/SKILL.md](../../skills/memo-brain/zh-CN/SKILL.md) 了解详细使用指南。
 
 ---
 
-### `memo search` - 搜索记忆
+## 💡 使用示例
 
-使用语义搜索查找相关记忆。
+> **📖 详细命令文档**，请查阅[命令参考](COMMANDS.md)
+
+### 基本操作
 
 ```bash
-memo search <query> [OPTIONS]
+# 嵌入文本并添加标签
+memo embed "学习了 Rust 生命周期" --tags rust,learning
+
+# 搜索记忆
+memo search "Rust 最佳实践" --limit 10
+
+# 列出所有记忆
+memo list
+
+# 更新记忆
+memo update abc123 --content "更新后的内容" --tags rust,updated
 ```
 
-| 参数/选项 | 说明 | 默认值 |
-|----------|------|--------|
-| `<query>` | 搜索查询字符串 | - |
-| `-n, --limit` | 返回结果数量 | 5 |
-| `-t, --threshold` | 相似度阈值（0-1） | 0.7 |
-| `--after` | 时间范围：之后 | - |
-| `--before` | 时间范围：之前 | - |
-| `-l, --local` | 使用本地数据库 | - |
-| `-g, --global` | 使用全局数据库 | - |
-
-**时间格式：**
-- `YYYY-MM-DD` - 例：`2026-01-20`（00:00）
-- `YYYY-MM-DD HH:MM` - 例：`2026-01-20 14:30`
-
-**示例：**
-```bash
-memo search "Rust 最佳实践"
-memo search "Vue 技巧" --limit 10 --threshold 0.6
-memo search "开发经验" --after 2026-01-20
-memo search "会议记录" --after "2026-01-20 09:00" --before "2026-01-20 18:00"
-```
-
----
-
-### `memo list` - 列出记忆
-
-列出数据库中的所有记忆（按更新时间显示）。
+### 高级用法
 
 ```bash
-memo list [OPTIONS]
-```
+# 智能重复检测
+memo embed "相似内容"  # 会检查重复
+memo embed "相似内容" --force  # 跳过重复检测
 
-| 选项 | 说明 |
-|-----|------|
-| `-l, --local` | 使用本地数据库 |
-| `-g, --global` | 使用全局数据库 |
+# 基于时间的搜索
+memo search "项目更新" --after 2026-01-20 --before 2026-01-31
 
----
-
-### `memo clear` - 清空数据库
-
-⚠️ **危险操作**：清空指定数据库中的所有记忆。
-
-```bash
-memo clear [OPTIONS]
-```
-
-| 选项 | 说明 |
-|-----|------|
-| `-l, --local` | 清空本地数据库 |
-| `-g, --global` | 清空全局数据库 |
-| `-f, --force` | 跳过确认提示（慎用） |
-
----
-
-### `memo init` - 初始化配置
-
-初始化配置（可选，首次使用会自动初始化）。
-
-```bash
-memo init [OPTIONS]
-```
-
-| 选项 | 说明 |
-|-----|------|
-| `-l, --local` | 在当前目录初始化本地配置 |
-
----
-
-## 💡 使用技巧
-
-### 标签策略
-
-```bash
-# 按技术栈分类
-memo embed "Vue 技巧" --tags vue,frontend
-
-# 按重要性分类
-memo embed "关键决策" --tags important,decision
-
-# 按项目分类
-memo embed "项目文档" --tags project-x,docs
-
-# 组合使用
-memo embed "安全漏洞修复" --tags security,bug-fix,important
-```
-
-### 时间过滤场景
-
-```bash
-# 查看最近的记忆
-memo search "开发经验" --after 2026-01-20
-
-# 查看某段时间的工作记录
-memo search "项目进展" --after 2026-01-01 --before 2026-01-31
-
-# 查看今天的记录
-memo search "会议" --after 2026-01-25
-```
-
-### 多项目管理
-
-```bash
-# 项目 A：使用本地数据库
-cd /path/to/project-a
-memo embed ./docs --local --tags project-a
-
-# 项目 B：使用独立配置
-cd /path/to/project-b
-memo init --local  # 创建 ./.memo/config.toml
-memo embed ./docs --tags project-b
+# 多项目管理
+cd project-a && memo embed ./docs --local --tags project-a
+cd project-b && memo init --local && memo embed ./docs --tags project-b
 ```
 
 ## ❓ 常见问题
@@ -467,9 +354,10 @@ AI Agent Skill 完全是可选的，它增加了便利性而非核心功能。
 
 ## 📖 更多信息
 
-- 查看 `config.example.toml` 了解完整配置选项
-- 使用 `memo <command> --help` 查看命令帮助
-- 查看 `skills/memo-brain/SKILL.md` 了解 AI agent 集成详情
+- [命令参考](COMMANDS.md) - 所有命令的详细文档
+- [AI Agent Skill](../../skills/memo-brain/zh-CN/SKILL.md) - AI 编码助手集成指南
+- `config.example.toml` - 完整配置选项
+- `memo <command> --help` - 命令特定帮助
 
 ## 📜 License
 

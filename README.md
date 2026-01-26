@@ -1,13 +1,15 @@
-# Memo CLI - Vector-based Knowledge Base
+# Memo CLI - Vector Memory Store
 
-A high-performance semantic search knowledge base tool powered by vector database. Supports **OpenAI-compatible APIs** and provides **AI Agent Skill** for seamless integration with AI coding assistants.
+A high-performance semantic search memory store tool powered by vector database. Supports **OpenAI-compatible APIs** and provides **AI Agent Skill** for seamless integration with AI coding assistants.
 
-[中文](docs/README_zh-CN.md)
+[中文](docs/zh-CN/README.md) | English
 
 ## ✨ Features
 
 - 🔍 **Semantic Search** - Intelligent search based on vector similarity, not just keyword matching
 - 🤖 **AI Agent Integration** - Built-in skill for Cursor, Windsurf, Claude Code, and other AI coding tools
+- 🧠 **Smart Duplicate Detection** - Automatically detects similar memories to prevent duplicates
+- 🔄 **Memory Management** - Update, delete, and merge memories for better organization
 - 🏷️ **Tag Management** - Support tag classification and Markdown frontmatter auto-merge
 - ⏰ **Time Filtering** - Filter memories by time range with flexible date formats
 - 📝 **Markdown Support** - Auto parse and index markdown files with frontmatter
@@ -19,11 +21,14 @@ A high-performance semantic search knowledge base tool powered by vector databas
 
 | Command | Function | Example |
 |---------|----------|---------|
-| `memo embed <input>` | Embed text/file/directory into vector database | `memo embed "note content" --tags rust,cli` |
+| `memo init` | Initialize configuration (optional) | `memo init --local` |
+| `memo embed <input>` | Embed text/file/directory | `memo embed "note content" --tags rust,cli` |
 | `memo search <query>` | Semantic search memories | `memo search "Rust best practices" --after 2026-01-20` |
 | `memo list` | List all memories | `memo list` |
+| `memo update <id>` | Update existing memory | `memo update abc123 --content "new content"` |
+| `memo delete <id>` | Delete memory | `memo delete abc123` |
+| `memo merge <ids>...` | Merge multiple memories | `memo merge id1 id2 id3 --content "merged"` |
 | `memo clear` | Clear database (dangerous) | `memo clear --local --force` |
-| `memo init` | Initialize configuration (optional) | `memo init --local` |
 
 **Common Options:**
 - `-t, --tags` - Add tags (comma-separated)
@@ -113,6 +118,8 @@ Command-line args > Local config > Global config > Defaults
 | `embedding_base_url` | ❌ | API endpoint | `https://api.openai.com/v1` |
 | `embedding_provider` | ❌ | Provider type | Auto-inferred |
 | `embedding_dimension` | ❌ | Vector dimension | Auto-inferred |
+| `similarity_threshold` | ❌ | Search similarity threshold (0-1) | `0.7` |
+| `duplicate_threshold` | ❌ | Duplicate detection threshold (0-1) | `0.85` |
 
 ### Supported API Types
 
@@ -208,163 +215,41 @@ memo search "database optimization" --after 2026-01-20
 
 See [skills/memo-brain/SKILL.md](skills/memo-brain/SKILL.md) for detailed usage guidelines.
 
-## 📚 Commands
-
-### `memo embed` - Embed Memory
-
-Embed text, file, or directory into vector database.
-
-```bash
-memo embed <input> [OPTIONS]
-```
-
-| Arg/Option | Description |
-|------------|-------------|
-| `<input>` | Text string, file path, or directory path |
-| `-t, --tags` | Add tags (comma-separated, e.g., `rust,cli`) |
-| `-l, --local` | Use local database `./.memo/brain` |
-| `-g, --global` | Use global database `~/.memo/brain` |
-
-**Examples:**
-```bash
-memo embed "Important note" --tags work,important
-memo embed notes.md --tags rust,learning
-memo embed ./docs --tags documentation
-```
-
-**💡 Markdown Tag Merging:**
-
-Frontmatter tags in Markdown files are automatically merged with command-line tags:
-
-```markdown
----
-tags: [rust, cli]
----
-```
-
-Running `memo embed file.md --tags important` → Final tags: `[rust, cli, important]`
-
 ---
 
-### `memo search` - Search Memories
+## 💡 Usage Examples
 
-Use semantic search to find relevant memories.
+> **📖 For detailed command documentation**, see [Command Reference](docs/COMMANDS.md)
+
+### Basic Operations
 
 ```bash
-memo search <query> [OPTIONS]
+# Embed text with tags
+memo embed "Learned about Rust lifetimes" --tags rust,learning
+
+# Search memories
+memo search "Rust best practices" --limit 10
+
+# List all memories
+memo list
+
+# Update a memory
+memo update abc123 --content "Updated content" --tags rust,updated
 ```
 
-| Arg/Option | Description | Default |
-|------------|-------------|---------|
-| `<query>` | Search query string | - |
-| `-n, --limit` | Number of results | 5 |
-| `-t, --threshold` | Similarity threshold (0-1) | 0.7 |
-| `--after` | Time range: after | - |
-| `--before` | Time range: before | - |
-| `-l, --local` | Use local database | - |
-| `-g, --global` | Use global database | - |
-
-**Time Format:**
-- `YYYY-MM-DD` - e.g., `2026-01-20` (00:00)
-- `YYYY-MM-DD HH:MM` - e.g., `2026-01-20 14:30`
-
-**Examples:**
-```bash
-memo search "Rust best practices"
-memo search "Vue tips" --limit 10 --threshold 0.6
-memo search "development experience" --after 2026-01-20
-memo search "meeting notes" --after "2026-01-20 09:00" --before "2026-01-20 18:00"
-```
-
----
-
-### `memo list` - List Memories
-
-List all memories in the database (sorted by update time).
+### Advanced Usage
 
 ```bash
-memo list [OPTIONS]
-```
+# Smart duplicate detection
+memo embed "Similar content"  # Will check for duplicates
+memo embed "Similar content" --force  # Skip duplicate check
 
-| Option | Description |
-|--------|-------------|
-| `-l, --local` | Use local database |
-| `-g, --global` | Use global database |
+# Time-based search
+memo search "project updates" --after 2026-01-20 --before 2026-01-31
 
----
-
-### `memo clear` - Clear Database
-
-⚠️ **Dangerous Operation**: Clear all memories in the specified database.
-
-```bash
-memo clear [OPTIONS]
-```
-
-| Option | Description |
-|--------|-------------|
-| `-l, --local` | Clear local database |
-| `-g, --global` | Clear global database |
-| `-f, --force` | Skip confirmation prompt (use with caution) |
-
----
-
-### `memo init` - Initialize Configuration
-
-Initialize configuration (optional, auto-initializes on first use).
-
-```bash
-memo init [OPTIONS]
-```
-
-| Option | Description |
-|--------|-------------|
-| `-l, --local` | Initialize local config in current directory |
-
----
-
-## 💡 Usage Tips
-
-### Tag Strategy
-
-```bash
-# Categorize by tech stack
-memo embed "Vue tips" --tags vue,frontend
-
-# Categorize by importance
-memo embed "Critical decision" --tags important,decision
-
-# Categorize by project
-memo embed "Project docs" --tags project-x,docs
-
-# Combine multiple categories
-memo embed "Security fix" --tags security,bug-fix,important
-```
-
-### Time Filtering Scenarios
-
-```bash
-# View recent memories
-memo search "development experience" --after 2026-01-20
-
-# View work records in a time period
-memo search "project progress" --after 2026-01-01 --before 2026-01-31
-
-# View today's records
-memo search "meeting" --after 2026-01-25
-```
-
-### Multi-Project Management
-
-```bash
-# Project A: Use local database
-cd /path/to/project-a
-memo embed ./docs --local --tags project-a
-
-# Project B: Use separate config
-cd /path/to/project-b
-memo init --local  # Create ./.memo/config.toml
-memo embed ./docs --tags project-b
+# Multi-project management
+cd project-a && memo embed ./docs --local --tags project-a
+cd project-b && memo init --local && memo embed ./docs --tags project-b
 ```
 
 ## ❓ FAQ
@@ -469,9 +354,10 @@ The AI Agent Skill is entirely optional and adds convenience, not core functiona
 
 ## 📖 More Information
 
-- Check `config.example.toml` for complete configuration options
-- Use `memo <command> --help` for command help
-- See `skills/memo-brain/SKILL.md` for AI agent integration details
+- [Command Reference](docs/COMMANDS.md) - Detailed documentation for all commands
+- [AI Agent Skill](skills/memo-brain/en-US/SKILL.md) - AI coding assistant integration guide
+- `config.example.toml` - Complete configuration options
+- `memo <command> --help` - Command-specific help
 
 ## 📜 License
 
