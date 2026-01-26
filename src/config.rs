@@ -24,6 +24,10 @@ fn default_similarity_threshold() -> f32 {
     0.7
 }
 
+fn default_duplicate_threshold() -> f32 {
+    0.85
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     #[serde(default = "default_brain_path")]
@@ -48,6 +52,10 @@ pub struct Config {
     pub search_limit: usize,
     #[serde(default = "default_similarity_threshold")]
     pub similarity_threshold: f32,
+
+    // 重复检测配置
+    #[serde(default = "default_duplicate_threshold")]
+    pub duplicate_threshold: f32,
 }
 
 impl Default for Config {
@@ -67,6 +75,7 @@ impl Default for Config {
 
             search_limit: 5,
             similarity_threshold: 0.7,
+            duplicate_threshold: 0.85,
         }
     }
 }

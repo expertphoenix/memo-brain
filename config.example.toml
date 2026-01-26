@@ -26,8 +26,11 @@ embedding_model = "your-model-name"
 # 返回结果数量上限
 search_limit = 5
 
-# 相似度阈值(0.0-1.0)
+# 搜索相似度阈值(0.0-1.0)
 similarity_threshold = 0.7
+
+# 重复检测相似度阈值(0.0-1.0)
+duplicate_threshold = 0.85
 
 # ============ 配置示例 ============
 

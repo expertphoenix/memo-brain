@@ -48,7 +48,11 @@ pub async fn clear(local: bool, global: bool, skip_confirm: bool) -> Result<()> 
 
     // 显示警告信息
     output.warning("this will delete all memories");
-    output.info(&format!("{} database: {}", scope_name, brain_path.display()));
+    output.info(&format!(
+        "{} database: {}",
+        scope_name,
+        brain_path.display()
+    ));
     output.info(&format!("{} records will be deleted", record_count));
 
     // 确认操作

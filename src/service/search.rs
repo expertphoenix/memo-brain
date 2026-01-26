@@ -59,7 +59,7 @@ pub async fn search(
     let mut stream = table
         .vector_search(query_vector)?
         .select(lancedb::query::Select::columns(&[
-            "title",
+            "id",
             "content",
             "updated_at",
             "_distance", // 必须包含 _distance 用于相似度计算
@@ -70,10 +70,10 @@ pub async fn search(
 
     let batch = stream.try_next().await?.context("No results found")?;
 
-    let titles = batch
-        .column_by_name("title")
+    let ids = batch
+        .column_by_name("id")
         .and_then(|c| c.as_any().downcast_ref::<arrow_array::StringArray>())
-        .context("Failed to get title column")?;
+        .context("Failed to get id column")?;
 
     let contents = batch
         .column_by_name("content")
@@ -135,7 +135,7 @@ pub async fn search(
 
         results.push((
             score,
-            titles.value(i).to_string(),
+            ids.value(i).to_string(),
             timestamp,
             contents.value(i).to_string(),
         ));
@@ -145,12 +145,12 @@ pub async fn search(
     results.truncate(limit);
 
     // 显示结果
-    for (score, title, timestamp, content) in &results {
+    for (score, id, timestamp, content) in &results {
         let updated = DateTime::from_timestamp_millis(*timestamp)
             .map(|dt| dt.format("%Y-%m-%d %H:%M").to_string())
             .unwrap_or_else(|| "N/A".to_string());
 
-        output.search_result(*score, title, &updated, content);
+        output.search_result(*score, id, &updated, content);
     }
 
     if results.is_empty() {

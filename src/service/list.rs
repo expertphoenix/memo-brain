@@ -30,7 +30,7 @@ pub async fn list(force_local: bool, force_global: bool) -> Result<()> {
     let mut stream = table
         .query()
         .select(lancedb::query::Select::columns(&[
-            "title",
+            "id",
             "content",
             "updated_at",
         ]))
@@ -40,10 +40,10 @@ pub async fn list(force_local: bool, force_global: bool) -> Result<()> {
     let mut total_count = 0;
 
     while let Some(batch) = stream.try_next().await? {
-        let titles = batch
-            .column_by_name("title")
+        let ids = batch
+            .column_by_name("id")
             .and_then(|c| c.as_any().downcast_ref::<arrow_array::StringArray>())
-            .context("Failed to get title column")?;
+            .context("Failed to get id column")?;
 
         let contents = batch
             .column_by_name("content")
@@ -68,7 +68,7 @@ pub async fn list(force_local: bool, force_global: bool) -> Result<()> {
             output.list_item(
                 total_count,
                 record_count,
-                titles.value(i),
+                ids.value(i),
                 &updated,
                 contents.value(i),
             );

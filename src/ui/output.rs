@@ -123,19 +123,18 @@ impl Output {
     }
 
     /// 显示搜索结果项
-    /// 格式: "[0.89] Title (2024-01-22 14:30)"
+    /// 格式: "[0.89] abc123-def456-... (2024-01-22 14:30)"
     ///       "       Content line 1"
     ///       "       Content line 2"
-    pub fn search_result(&self, score: f32, title: &str, date: &str, content: &str) {
+    pub fn search_result(&self, score: f32, id: &str, date: &str, content: &str) {
         println!(
             "[{}] {} {}",
             self.dim.apply_to(format!("{:.2}", score)),
-            self.bold.apply_to(title),
+            self.bold.apply_to(id),
             self.dim.apply_to(format!("({})", date))
         );
 
-        // 全文显示，每行保持与标题对齐的缩进（7个空格）
-        // [0.71] <- 6个字符 + 1个空格 = 7
+        // 全文显示，每行保持与 ID 对齐的缩进（7个空格）
         for line in content.lines() {
             println!("       {}", line);
         }
@@ -143,47 +142,34 @@ impl Output {
     }
 
     /// 显示列表项
-    /// 格式: "[1/10] Title (2024-01-22)"
+    /// 格式: "[1/10] abc123-def456-... (2024-01-22)"
     ///       "       Content line 1"
     ///       "       Content line 2"
-    pub fn list_item(&self, index: usize, total: usize, title: &str, date: &str, content: &str) {
+    pub fn list_item(&self, index: usize, total: usize, id: &str, date: &str, content: &str) {
         let index_str = format!("{}/{}", index, total);
         println!(
             "[{}] {} {}",
             self.dim.apply_to(&index_str),
-            self.bold.apply_to(title),
+            self.bold.apply_to(id),
             self.dim.apply_to(format!("({})", date))
         );
 
-        // 全文显示，每行保持与标题对齐的缩进
+        // 全文显示，每行保持与 ID 对齐的缩进
         // [1/10] <- 长度可变，需要动态计算
         let indent_width = index_str.len() + 3; // [index/total] + 空格 = len + 2 + 1
         let indent = " ".repeat(indent_width);
-        
+
         for line in content.lines() {
             println!("{}{}", indent, line);
         }
         println!();
     }
 
-    /// 格式化内容预览：过滤换行、截断到 100 字符
-    fn format_content_preview(&self, content: &str) -> String {
-        // 将换行符替换为空格
-        let single_line = content.replace(['\n', '\r'], " ");
-        let truncated: String = single_line.chars().take(100).collect();
-
-        if single_line.len() > 100 {
-            format!("{}...", truncated.trim_end())
-        } else {
-            truncated.trim().to_string()
-        }
-    }
-
     /// 显示注意事项（右对齐）
     /// 自动在前面添加空行
     pub fn note(&self, message: &str) {
         eprintln!();
-        eprintln!("{:>12} {}", self.dim.apply_to("note:"), message);
+        eprintln!("{:>12} {}", self.dim.apply_to("Note"), message);
     }
 
     /// 显示警告（红色，右对齐）

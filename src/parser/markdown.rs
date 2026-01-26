@@ -23,21 +23,20 @@ fn extract_sections(content: &str) -> Result<Vec<MemoSection>> {
     let re = Regex::new(r"^(#{2,3})\s+(.+)$")?;
 
     let lines: Vec<&str> = content_without_frontmatter.lines().collect();
-    let mut current_section_title = String::from("Overview");
     let mut current_content = String::new();
 
     for line in lines {
-        if let Some(caps) = re.captures(line) {
+        if let Some(_caps) = re.captures(line) {
             // 保存上一个章节
             if !current_content.is_empty() {
                 sections.push(MemoSection {
-                    section_title: current_section_title.clone(),
                     content: current_content.trim().to_string(),
                     metadata: metadata.clone(),
                 });
             }
-            current_section_title = caps[2].to_string();
             current_content.clear();
+            // 标题本身也是内容的一部分
+            current_content.push_str(line);
         } else {
             if !current_content.is_empty() {
                 current_content.push('\n');
@@ -49,7 +48,6 @@ fn extract_sections(content: &str) -> Result<Vec<MemoSection>> {
     // 保存最后一个章节
     if !current_content.is_empty() {
         sections.push(MemoSection {
-            section_title: current_section_title,
             content: current_content.trim().to_string(),
             metadata,
         });

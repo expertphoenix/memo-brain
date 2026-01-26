@@ -15,6 +15,8 @@ use walkdir::WalkDir;
 pub async fn embed(
     input: String,
     user_tags: Option<Vec<String>>,
+    force: bool,
+    dup_threshold: Option<f32>,
     force_local: bool,
     force_global: bool,
 ) -> Result<()> {
@@ -62,6 +64,9 @@ pub async fn embed(
         TableOperations::create_table(conn.inner(), "memories").await?
     };
 
+    // 使用命令行参数或配置文件中的阈值
+    let duplicate_threshold = dup_threshold.unwrap_or(config.duplicate_threshold);
+
     let expanded_input = shellexpand::tilde(&input).to_string();
     let input_path = std::path::Path::new(&expanded_input);
 
@@ -76,7 +81,15 @@ pub async fn embed(
         }
     } else {
         // 情况3：纯文本字符串
-        embed_text(&model, &table, &input, user_tags.as_ref()).await?;
+        embed_text(
+            &model,
+            &table,
+            &input,
+            user_tags.as_ref(),
+            force,
+            duplicate_threshold,
+        )
+        .await?;
     }
 
     output.finish("embedding", scope);
@@ -152,6 +165,8 @@ async fn embed_text(
     table: &lancedb::Table,
     text: &str,
     user_tags: Option<&Vec<String>>,
+    force: bool,
+    duplicate_threshold: f32,
 ) -> Result<()> {
     let output = Output::new();
 
@@ -159,20 +174,97 @@ async fn embed_text(
     let normalized = normalize_for_embedding(text);
     let embedding = model.encode(&normalized).await?;
 
+    // 如果不是强制模式，检查是否有相似的记忆
+    if !force {
+        output.status("Checking", "for similar memories");
+
+        use futures::TryStreamExt;
+        use lancedb::query::{ExecutableQuery, QueryBase};
+
+        let mut stream = table
+            .vector_search(embedding.clone())?
+            .select(lancedb::query::Select::columns(&[
+                "id",
+                "content",
+                "tags",
+                "updated_at",
+                "_distance",
+            ]))
+            .limit(5)
+            .execute()
+            .await?;
+
+        if let Some(batch) = stream.try_next().await? {
+            let distances = batch
+                .column_by_name("_distance")
+                .and_then(|c| c.as_any().downcast_ref::<arrow_array::Float32Array>())
+                .context("Failed to get distance column")?;
+
+            let mut similar_memories = Vec::new();
+
+            for i in 0..batch.num_rows() {
+                let distance = distances.value(i);
+                let score = (1.0 - (distance / 2.0)).max(0.0);
+
+                if score >= duplicate_threshold {
+                    let ids = batch
+                        .column_by_name("id")
+                        .and_then(|c| c.as_any().downcast_ref::<arrow_array::StringArray>())
+                        .context("Failed to get id column")?;
+
+                    let contents = batch
+                        .column_by_name("content")
+                        .and_then(|c| c.as_any().downcast_ref::<arrow_array::StringArray>())
+                        .context("Failed to get content column")?;
+
+                    let tags_col = batch
+                        .column_by_name("tags")
+                        .and_then(|c| c.as_any().downcast_ref::<arrow_array::StringArray>())
+                        .context("Failed to get tags column")?;
+
+                    let updated_ats = batch
+                        .column_by_name("updated_at")
+                        .and_then(|c| {
+                            c.as_any()
+                                .downcast_ref::<arrow_array::TimestampMillisecondArray>()
+                        })
+                        .context("Failed to get updated_at column")?;
+
+                    let id = ids.value(i).to_string();
+                    let content = contents.value(i).to_string();
+                    let tags: Vec<String> = serde_json::from_str(tags_col.value(i))?;
+                    let timestamp = updated_ats.value(i);
+                    let updated = chrono::DateTime::from_timestamp_millis(timestamp)
+                        .map(|dt| dt.format("%Y-%m-%d %H:%M").to_string())
+                        .unwrap_or_else(|| "N/A".to_string());
+
+                    similar_memories.push((score, id, content, tags, updated));
+                }
+            }
+
+            if !similar_memories.is_empty() {
+                // 检测到相似记忆，输出详细信息并取消嵌入
+                output.warning(&format!(
+                    "Found {} similar memories (threshold: {:.2})",
+                    similar_memories.len(),
+                    duplicate_threshold
+                ));
+
+                for (score, id, content, _tags, updated) in similar_memories.iter() {
+                    output.search_result(*score, id, updated, content);
+                }
+
+                output.note("Use --force to add anyway, or update/merge/delete existing memories");
+
+                anyhow::bail!("Embedding cancelled due to similar memories");
+            }
+        }
+    }
+
     // 使用用户提供的 tags，如果没有则为空数组
     let tags = user_tags.cloned().unwrap_or_default();
 
-    // 提取第一行作为标题，最多 50 个字符
-    let title = text
-        .lines()
-        .next()
-        .unwrap_or(text)
-        .chars()
-        .take(50)
-        .collect::<String>();
-
     let memory = Memory::new(MemoryBuilder {
-        title,
         content: text.to_string(),
         tags,
         vector: embedding,
@@ -198,8 +290,7 @@ async fn embed_section(
     user_tags: Option<&Vec<String>>,
 ) -> Result<()> {
     // 规范化文本用于嵌入
-    let text = format!("{} {}", section.section_title, section.content);
-    let normalized = normalize_for_embedding(&text);
+    let normalized = normalize_for_embedding(&section.content);
     let embedding = model.encode(&normalized).await?;
 
     // 合并 frontmatter tags 和用户提供的 tags（去重）
@@ -213,7 +304,6 @@ async fn embed_section(
     }
 
     let memory = Memory::new(MemoryBuilder {
-        title: section.section_title.clone(),
         content: section.content,
         tags,
         vector: embedding,
@@ -230,7 +320,6 @@ async fn embed_section(
 
 fn memory_to_batch(memory: &Memory) -> Result<RecordBatch> {
     let id_array = StringArray::from(vec![memory.id.as_str()]);
-    let title_array = StringArray::from(vec![memory.title.as_str()]);
     let content_array = StringArray::from(vec![memory.content.as_str()]);
     let tags_json = serde_json::to_string(&memory.tags)?;
     let tags_array = StringArray::from(vec![tags_json.as_str()]);
@@ -253,7 +342,6 @@ fn memory_to_batch(memory: &Memory) -> Result<RecordBatch> {
         crate::models::memory_schema(),
         vec![
             Arc::new(id_array) as ArrayRef,
-            Arc::new(title_array) as ArrayRef,
             Arc::new(content_array) as ArrayRef,
             Arc::new(tags_array) as ArrayRef,
             Arc::new(vector_array) as ArrayRef,

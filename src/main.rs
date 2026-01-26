@@ -38,9 +38,11 @@ fn main() -> Result<()> {
             cli::Commands::Embed {
                 input,
                 tags,
+                force,
+                dup_threshold,
                 local,
                 global,
-            } => service::embed::embed(input, tags, local, global).await,
+            } => service::embed::embed(input, tags, force, dup_threshold, local, global).await,
             cli::Commands::Search {
                 query,
                 limit,
@@ -59,6 +61,26 @@ fn main() -> Result<()> {
                 global,
                 force,
             } => service::clear::clear(local, global, force).await,
+            cli::Commands::Update {
+                id,
+                content,
+                tags,
+                local,
+                global,
+            } => service::update::update(&id, content, tags, local, global).await,
+            cli::Commands::Delete {
+                id,
+                local,
+                global,
+                force,
+            } => service::delete::delete(&id, local, global, force).await,
+            cli::Commands::Merge {
+                ids,
+                content,
+                tags,
+                local,
+                global,
+            } => service::merge::merge(ids, content, tags, local, global).await,
         }
     })
 }

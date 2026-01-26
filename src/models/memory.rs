@@ -5,7 +5,6 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Memory {
     pub id: String,
-    pub title: String,
     pub content: String,
     pub tags: Vec<String>,
     pub vector: Vec<f32>,
@@ -15,7 +14,6 @@ pub struct Memory {
 }
 
 pub struct MemoryBuilder {
-    pub title: String,
     pub content: String,
     pub tags: Vec<String>,
     pub vector: Vec<f32>,
@@ -27,7 +25,6 @@ impl Memory {
         let now = Utc::now();
         Self {
             id: Uuid::new_v4().to_string(),
-            title: builder.title,
             content: builder.content,
             tags: builder.tags,
             vector: builder.vector,
@@ -40,7 +37,6 @@ impl Memory {
 
 #[derive(Debug, Clone)]
 pub struct MemoSection {
-    pub section_title: String,
     pub content: String,
     pub metadata: MemoMetadata,
 }

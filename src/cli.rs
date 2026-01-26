@@ -26,6 +26,14 @@ pub enum Commands {
         #[arg(short = 't', long, value_delimiter = ',')]
         tags: Option<Vec<String>>,
 
+        /// Force embed even if similar memories exist (skip duplicate check)
+        #[arg(short, long)]
+        force: bool,
+
+        /// Similarity threshold for duplicate detection (0.0-1.0, overrides config)
+        #[arg(long = "dup-threshold")]
+        dup_threshold: Option<f32>,
+
         /// Use local database (./.memo/brain)
         #[arg(short, long)]
         local: bool,
@@ -86,5 +94,67 @@ pub enum Commands {
         /// Skip confirmation prompt (use with caution)
         #[arg(short, long)]
         force: bool,
+    },
+
+    #[command(about = "Update an existing memory")]
+    Update {
+        /// Memory ID to update
+        id: String,
+
+        /// New content for the memory
+        #[arg(short, long)]
+        content: String,
+
+        /// New tags (comma-separated, replaces existing tags)
+        #[arg(short = 't', long, value_delimiter = ',')]
+        tags: Option<Vec<String>>,
+
+        /// Use local database (./.memo/brain)
+        #[arg(short, long)]
+        local: bool,
+
+        /// Use global database (~/.memo/brain)
+        #[arg(short, long)]
+        global: bool,
+    },
+
+    #[command(about = "Delete a memory by ID")]
+    Delete {
+        /// Memory ID to delete
+        id: String,
+
+        /// Use local database (./.memo/brain)
+        #[arg(short, long)]
+        local: bool,
+
+        /// Use global database (~/.memo/brain)
+        #[arg(short, long)]
+        global: bool,
+
+        /// Skip confirmation prompt (use with caution)
+        #[arg(short, long)]
+        force: bool,
+    },
+
+    #[command(about = "Merge multiple memories into one")]
+    Merge {
+        /// Memory IDs to merge (space-separated)
+        ids: Vec<String>,
+
+        /// Content for the merged memory
+        #[arg(short, long)]
+        content: String,
+
+        /// Tags for the merged memory (comma-separated)
+        #[arg(short = 't', long, value_delimiter = ',')]
+        tags: Option<Vec<String>>,
+
+        /// Use local database (./.memo/brain)
+        #[arg(short, long)]
+        local: bool,
+
+        /// Use global database (~/.memo/brain)
+        #[arg(short, long)]
+        global: bool,
     },
 }

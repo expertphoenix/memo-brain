@@ -4,7 +4,6 @@ use std::sync::Arc;
 pub fn memory_schema() -> SchemaRef {
     let fields = vec![
         Field::new("id", DataType::Utf8, false),
-        Field::new("title", DataType::Utf8, false),
         Field::new("content", DataType::Utf8, false),
         Field::new("tags", DataType::Utf8, false), // JSON array of strings
         Field::new(
