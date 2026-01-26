@@ -2,15 +2,14 @@ use anyhow::{Context, Result};
 use arrow_array::{
     ArrayRef, RecordBatch, RecordBatchIterator, StringArray, TimestampMillisecondArray,
 };
-use console::Style;
 use std::sync::Arc;
 
 use crate::config::Config;
 use crate::db::{Connection, TableOperations};
 use crate::embedding::EmbeddingModel;
 use crate::models::{Memory, MemoryBuilder};
-use crate::output::Output;
 use crate::parser::parse_markdown_file;
+use crate::ui::Output;
 use walkdir::WalkDir;
 
 pub async fn embed(
@@ -27,7 +26,7 @@ pub async fn embed(
     let scope = Config::get_scope_name(force_local, force_global);
 
     // 连接数据库并显示基本信息
-    let conn = Connection::connect(config.brain_path.to_str().unwrap()).await?;
+    let conn = Connection::connect(&config.brain_path).await?;
 
     // 获取数据库信息
     let table_exists = TableOperations::table_exists(conn.inner(), "memories").await;
@@ -39,51 +38,7 @@ pub async fn embed(
     };
 
     // 检查 API key（Ollama 不需要）
-    let is_ollama = config
-        .embedding_provider
-        .as_ref()
-        .map(|p| p.to_lowercase() == "ollama")
-        .unwrap_or_else(|| {
-            config
-                .embedding_base_url
-                .as_ref()
-                .map(|url| url.contains("ollama") || url.contains("11434"))
-                .unwrap_or(false)
-        });
-
-    if !is_ollama && config.embedding_api_key.is_empty() {
-        eprintln!();
-        output.warning("Embedding API key not configured");
-        eprintln!();
-        eprintln!("  请运行以下命令创建配置文件：");
-        eprintln!("    {}", Style::new().cyan().apply_to("memo init"));
-        eprintln!();
-        eprintln!("  然后编辑配置文件并设置你的 API key：");
-        eprintln!(
-            "    {}",
-            Style::new().dim().apply_to(if force_local {
-                "./.memo/config.toml"
-            } else {
-                "~/.memo/config.toml"
-            })
-        );
-        eprintln!();
-        eprintln!("  配置示例：");
-        eprintln!(
-            "    {}",
-            Style::new()
-                .dim()
-                .apply_to("embedding_api_key = \"sk-...\"")
-        );
-        eprintln!(
-            "    {}",
-            Style::new()
-                .dim()
-                .apply_to("embedding_model = \"text-embedding-3-small\"")
-        );
-        eprintln!();
-        anyhow::bail!("Missing required configuration");
-    }
+    config.validate_api_key(force_local)?;
 
     let model = EmbeddingModel::new(
         config.embedding_api_key.clone(),
@@ -100,7 +55,6 @@ pub async fn embed(
         &config.embedding_model,
         model.dimension(),
     );
-    eprintln!();
 
     let table = if table_exists {
         TableOperations::open_table(conn.inner(), "memories").await?
@@ -125,7 +79,6 @@ pub async fn embed(
         embed_text(&model, &table, &input, user_tags.as_ref()).await?;
     }
 
-    eprintln!();
     output.finish("embedding", scope);
 
     Ok(())

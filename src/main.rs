@@ -5,7 +5,9 @@ use clap::Parser;
 mod cli;
 mod config;
 mod models;
-mod output;
+
+// UI module
+mod ui;
 
 // Infrastructure
 mod db;

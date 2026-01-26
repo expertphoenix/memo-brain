@@ -63,7 +63,7 @@ fn extract_frontmatter(content: &str) -> Result<(MemoMetadata, String)> {
 
     if let Some(caps) = frontmatter_re.captures(content) {
         let frontmatter = caps.get(1).map_or("", |m| m.as_str());
-        let remaining_content = &content[caps.get(0).unwrap().end()..];
+        let remaining_content = caps.get(0).map(|m| &content[m.end()..]).unwrap_or(content);
 
         // 解析 frontmatter
         let mut tags = Vec::new();

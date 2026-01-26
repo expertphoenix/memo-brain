@@ -4,7 +4,7 @@ use lancedb::query::{ExecutableQuery, QueryBase};
 
 use crate::config::Config;
 use crate::db::{Connection, TableOperations};
-use crate::output::Output;
+use crate::ui::Output;
 
 pub async fn list(force_local: bool, force_global: bool) -> Result<()> {
     let output = Output::new();
@@ -14,7 +14,7 @@ pub async fn list(force_local: bool, force_global: bool) -> Result<()> {
 
     let config = Config::load_with_scope(force_local, force_global)?;
 
-    let conn = Connection::connect(config.brain_path.to_str().unwrap()).await?;
+    let conn = Connection::connect(&config.brain_path).await?;
     let table = TableOperations::open_table(conn.inner(), "memories").await?;
     let record_count = table.count_rows(None).await.unwrap_or(0);
 
@@ -22,12 +22,9 @@ pub async fn list(force_local: bool, force_global: bool) -> Result<()> {
     output.database_info(&config.brain_path, record_count);
 
     if record_count == 0 {
-        eprintln!();
         output.info("No memories found. Use 'memo embed' to add some!");
         return Ok(());
     }
-
-    eprintln!();
 
     // 只查询需要的列，提升性能
     let mut stream = table

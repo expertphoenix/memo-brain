@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use console::Style;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -260,6 +261,46 @@ impl Config {
             )
         })?;
 
+        Ok(())
+    }
+
+    /// 检查是否使用 Ollama（通过 provider 或 base_url 判断）
+    pub fn is_ollama(&self) -> bool {
+        self.embedding_provider
+            .as_ref()
+            .map(|p| p.to_lowercase() == "ollama")
+            .unwrap_or_else(|| {
+                self.embedding_base_url
+                    .as_ref()
+                    .map(|url| url.contains("ollama") || url.contains("11434"))
+                    .unwrap_or(false)
+            })
+    }
+
+    /// 验证 API key 是否配置（Ollama 不需要）
+    /// 如果未配置，显示错误信息并返回错误
+    pub fn validate_api_key(&self, force_local: bool) -> Result<()> {
+        use crate::ui::Output;
+
+        if !self.is_ollama() && self.embedding_api_key.is_empty() {
+            let output = Output::new();
+            output.warning("Embedding API key not configured");
+            output.info(&format!(
+                "Please edit config file: {}",
+                Style::new().cyan().apply_to(if force_local {
+                    "./.memo/config.toml"
+                } else {
+                    "~/.memo/config.toml"
+                })
+            ));
+            output.info(&format!(
+                "Example: {}",
+                Style::new()
+                    .dim()
+                    .apply_to("embedding_api_key = \"sk-...\"")
+            ));
+            anyhow::bail!("Missing required configuration");
+        }
         Ok(())
     }
 }
