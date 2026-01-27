@@ -189,15 +189,36 @@ memo search "error handling" --tree --threshold 0.65 -n 30
 
 ### Memory Tree Output Example
 
-```
-Memory Tree (20 nodes, 3 layers)
+Tree search displays complete memory content, including ID, date, tags, and full text. Uses `[LAYER1]`, `[LAYER2]` etc. to explicitly mark hierarchy levels. Child nodes appear within parent node's content area, with blank lines separating nodes at the same level, and content lines in pure text format:
 
-├─ [0.85] Rust async patterns overview
-│  ├─ [0.78] async-trait crate usage
-│  │  └─ [0.72] Error handling in async
-│  └─ [0.75] Tokio runtime patterns
-└─ [0.82] Future and Pin explained
-   └─ [0.70] Async lifetimes
+```
+[LAYER1] [0.85] a1b2c3d4-e5f6-7890-abcd-ef1234567890 (2026-01-27 10:30) [rust, async, trait]
+                Rust async patterns - async-trait usage guide
+                
+                Context: Using async fn directly in traits causes compilation errors
+                Solution: Use #[async_trait] macro on trait definitions and implementations
+                Key Points: The macro must be added to both trait and impl blocks
+                
+       [LAYER2] [0.78] b2c3d4e5-f6a7-8901-bcde-f12345678901 (2026-01-26 14:20) [rust, async, error]
+                       Async error handling - Result<T, E> usage
+                       
+                       Context: Need to handle errors gracefully in async functions
+                       Solution: Return Result<T, Box<dyn Error>> or use anyhow::Result
+                       Key Points: Use ? operator for error propagation
+       
+       [LAYER2] [0.75] c3d4e5f6-a7b8-9012-cdef-123456789012 (2026-01-25 09:15) [rust, tokio, runtime]
+                       Tokio runtime configuration - Multi-threaded vs Single-threaded
+                       
+                       Context: Choose appropriate Tokio runtime mode
+                       Solution: Use #[tokio::main] for multi-threaded, current_thread for single-threaded
+                       Key Points: Select based on application workload characteristics
+
+[LAYER1] [0.82] f9a8b7c6-d5e4-3210-fedc-ba9876543210 (2026-01-26 15:45) [rust, error]
+                Rust error handling best practices
+                
+                Context: Application and library layers need different error handling strategies
+                Solution: Use anyhow for applications, thiserror for libraries
+                Key Points: Avoid using anyhow in libraries
 ```
 
 ---

@@ -115,9 +115,8 @@ impl Output {
 
     /// 显示搜索结果（列表格式，带相似度分数）
     pub fn search_results(&self, results: &[QueryResult]) {
-        let total = results.len();
         for (i, result) in results.iter().enumerate() {
-            self.result_item(i + 1, total, result);
+            self.display_result_item_list(result);
 
             // 只在非最后一个结果后添加空行分隔
             if i < results.len() - 1 {
@@ -128,13 +127,12 @@ impl Output {
 
     /// 显示列表结果（列表格式，不带分数）
     pub fn list_results(&self, results: &[QueryResult]) {
-        let total = results.len();
         for (i, result) in results.iter().enumerate() {
             // 创建一个不带分数的副本
             let mut list_result = result.clone();
             list_result.score = None;
 
-            self.result_item(i + 1, total, &list_result);
+            self.display_result_item_list(&list_result);
 
             // 只在非最后一个结果后添加空行分隔
             if i < results.len() - 1 {
@@ -143,11 +141,15 @@ impl Output {
         }
     }
 
-    /// 显示树形结果（层级结构，带相似度分数）
-    pub fn tree_results(&self, tree: &MemoryTree) {
+    /// 显示搜索结果（树形格式，带相似度分数）
+    pub fn search_results_tree(&self, tree: &MemoryTree) {
         for (i, child) in tree.root.children.iter().enumerate() {
-            let is_last = i == tree.root.children.len() - 1;
-            self.display_tree_node(child, "", is_last);
+            self.display_result_item_tree(child, "");
+
+            // 只在非最后一个结果后添加空行分隔
+            if i < tree.root.children.len() - 1 {
+                println!();
+            }
         }
     }
 
@@ -205,11 +207,11 @@ impl Output {
 
     // === 私有辅助方法 ===
 
-    /// 显示单个结果项（统一格式）
+    /// 显示单个结果项（列表格式）
     /// 格式: "[0.89] id (date) [tag1, tag2]" 或 "id (date) [tag1, tag2]"
     ///       "       Content line 1"
     ///       "       Content line 2"
-    fn result_item(&self, _index: usize, _total: usize, result: &QueryResult) {
+    fn display_result_item_list(&self, result: &QueryResult) {
         let id = &result.id;
         let content = &result.content;
         let tags = &result.tags;
@@ -251,35 +253,68 @@ impl Output {
         }
     }
 
-    /// 递归显示树节点（私有辅助方法）
-    fn display_tree_node(&self, node: &MemoryNode, prefix: &str, is_last: bool) {
+    /// 显示单个结果项（树形格式，递归）
+    fn display_result_item_tree(&self, node: &MemoryNode, prefix: &str) {
         if let Some(memory) = &node.memory {
-            // 绘制树枝
-            let branch = if is_last { "└─" } else { "├─" };
+            // 格式化层级标签
+            let layer_label = format!("[LAYER{}]", node.layer);
 
-            // 提取第一行作为预览
-            let preview = memory
-                .content
-                .lines()
-                .next()
-                .unwrap_or("")
-                .chars()
-                .take(70)
-                .collect::<String>();
-
-            // 显示节点
+            // 格式化相似度分数
             let score_str = memory
                 .score
-                .map_or("?".to_string(), |s| format!("{:.2}", s));
+                .map_or("?".to_string(), |s| format!("[{:.2}]", s));
 
-            println!("{}{} {} [{}]", prefix, branch, preview, score_str);
+            // 格式化日期
+            let date = chrono::DateTime::from_timestamp_millis(memory.updated_at)
+                .map(|dt| dt.format("%Y-%m-%d %H:%M").to_string())
+                .unwrap_or_else(|| "N/A".to_string());
 
-            // 递归输出子节点
-            let new_prefix = format!("{}{}   ", prefix, if is_last { " " } else { "│" });
+            // 格式化标签
+            let tags_part = if memory.tags.is_empty() {
+                String::new()
+            } else {
+                format!(
+                    " {}",
+                    self.dim.apply_to(format!("[{}]", memory.tags.join(", ")))
+                )
+            };
 
-            for (i, child) in node.children.iter().enumerate() {
-                let child_is_last = i == node.children.len() - 1;
-                self.display_tree_node(child, &new_prefix, child_is_last);
+            // 第一行：缩进 + 层级标签 + 分数 + ID + 日期 + 标签
+            println!(
+                "{}{} {} {} {}{}",
+                prefix,
+                self.dim.apply_to(&layer_label),
+                self.green.apply_to(&score_str),
+                self.bold.apply_to(&memory.id),
+                self.dim.apply_to(format!("({})", date)),
+                tags_part
+            );
+
+            // 内容缩进：prefix长度 + 层级标签长度 + 1空格 + 7个空格（对齐到分数后）
+            // [LAYER1] = 8字符，加1个空格 + 7个分数空格 = 16字符
+            let content_indent = " ".repeat(prefix.len() + 9 + 7);
+
+            // 后续行：纯文本内容，无视觉元素
+            for line in memory.content.lines() {
+                println!("{}{}", content_indent, line);
+            }
+
+            // 递归输出子节点（子节点的层级标签往前缩进2个空格）
+            if !node.children.is_empty() {
+                // 内容和子节点之间先加一个空行
+                println!();
+
+                // 子节点前缀 = 父节点prefix + 7个空格
+                let child_prefix = format!("{}{}", prefix, " ".repeat(7));
+
+                for (i, child) in node.children.iter().enumerate() {
+                    self.display_result_item_tree(child, &child_prefix);
+
+                    // 只在非最后一个结果后添加空行分隔
+                    if i < node.children.len() - 1 {
+                        println!();
+                    }
+                }
             }
         }
     }

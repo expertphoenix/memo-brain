@@ -189,15 +189,36 @@ memo search "错误处理" --tree --threshold 0.65 -n 30
 
 ### 记忆树输出示例
 
-```
-记忆树 (20 节点, 3 层)
+树形搜索会显示完整的记忆内容，包括 ID、日期、标签和全文。使用 `[LAYER1]`、`[LAYER2]` 等标签明确标识层级关系，子节点显示在父节点的内容区域内，同层节点之间用空行分隔，内容行保持纯文本格式：
 
-├─ [0.85] Rust 异步模式概览
-│  ├─ [0.78] async-trait crate 使用
-│  │  └─ [0.72] async 错误处理
-│  └─ [0.75] Tokio 运行时模式
-└─ [0.82] Future 和 Pin 解释
-   └─ [0.70] async 生命周期
+```
+[LAYER1] [0.85] a1b2c3d4-e5f6-7890-abcd-ef1234567890 (2026-01-27 10:30) [rust, async, trait]
+                Rust 异步模式 - async-trait 使用指南
+                
+                背景：在 trait 中直接使用 async fn 会导致编译错误
+                方案：使用 #[async_trait] 宏修饰 trait 定义和实现
+                关键点：需要在 trait 和 impl 块都添加该宏
+                
+       [LAYER2] [0.78] b2c3d4e5-f6a7-8901-bcde-f12345678901 (2026-01-26 14:20) [rust, async, error]
+                       异步错误处理 - Result<T, E> 使用
+                       
+                       背景：异步函数中需要优雅地处理错误
+                       方案：返回 Result<T, Box<dyn Error>> 或使用 anyhow::Result
+                       关键点：使用 ? 操作符进行错误传播
+       
+       [LAYER2] [0.75] c3d4e5f6-a7b8-9012-cdef-123456789012 (2026-01-25 09:15) [rust, tokio, runtime]
+                       Tokio 运行时配置 - 多线程 vs 单线程
+                       
+                       背景：选择合适的 Tokio 运行时模式
+                       方案：多线程用 #[tokio::main]，单线程用 current_thread
+                       关键点：根据应用负载特性选择
+
+[LAYER1] [0.82] f9a8b7c6-d5e4-3210-fedc-ba9876543210 (2026-01-26 15:45) [rust, error]
+                Rust 错误处理最佳实践
+                
+                背景：应用层和库层需要不同的错误处理策略
+                方案：应用层用 anyhow，库层用 thiserror
+                关键点：避免在库中使用 anyhow
 ```
 
 ---

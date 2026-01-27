@@ -190,7 +190,7 @@ async fn search_as_tree(
     let tree = MemoryTree { root, total_nodes };
 
     // 输出树
-    output.tree_results(&tree);
+    output.search_results_tree(&tree);
 
     Ok(())
 }
