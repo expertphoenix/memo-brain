@@ -6,6 +6,8 @@ use crate::ui::Output;
 use memo_local::{DatabaseMetadata, LocalStorageClient};
 use memo_types::{StorageBackend, StorageConfig};
 
+// === 公开接口 ===
+
 /// 显式初始化（带用户反馈）
 /// local: true 表示在本地目录初始化，false 表示在全局目录初始化
 pub async fn initialize(local: bool) -> Result<()> {
@@ -88,6 +90,8 @@ pub async fn initialize(local: bool) -> Result<()> {
 
     Ok(())
 }
+
+// === 辅助函数 ===
 
 /// 自动初始化（静默模式）
 /// 确保数据库目录和表存在，不生成配置文件

@@ -33,7 +33,7 @@ pub async fn list(force_local: bool, force_global: bool) -> Result<()> {
     let results = storage.list().await?;
 
     // 显示结果
-    output.list_items(&results);
+    output.list_results(&results);
 
     Ok(())
 }

@@ -2,7 +2,7 @@ use console::Style;
 use std::io::{self, Write};
 use std::path::Path;
 
-use memo_types::QueryResult;
+use memo_types::{MemoryNode, MemoryTree, QueryResult};
 
 /// 命令行输出格式化工具
 /// 提供统一的 Cargo 风格输出
@@ -13,6 +13,8 @@ pub struct Output {
 }
 
 impl Output {
+    // === 构造方法 ===
+
     pub fn new() -> Self {
         Self {
             green: Style::new().green().bold(),
@@ -20,6 +22,8 @@ impl Output {
             dim: Style::new().dim(),
         }
     }
+
+    // === 状态和进度显示方法 ===
 
     /// 显示状态消息（如 "Loading model", "Embedding text" 等）
     /// 格式: "     Loading model ..."（动词右对齐到 12 字符）
@@ -34,11 +38,20 @@ impl Output {
         eprintln!("{:>12} {}", self.green.apply_to(action), target);
     }
 
-    /// 完成状态消息（在同一行输出换行）
-    #[allow(dead_code)]
-    pub fn status_done(&self) {
-        // 已废弃 - status() 现在直接换行
+    /// 显示完成消息
+    /// 格式: "    Finished action for scope"
+    /// 自动在前面添加空行
+    pub fn finish(&self, action: &str, scope: &str) {
+        eprintln!();
+        eprintln!(
+            "{:>12} {} for {} scope",
+            self.green.apply_to("Finished"),
+            action,
+            scope
+        );
     }
+
+    // === 信息显示方法 ===
 
     /// 显示数据库信息
     /// 格式: "    Database /path/to/db (123 records)"
@@ -88,26 +101,6 @@ impl Output {
         eprintln!();
     }
 
-    /// 显示完成消息
-    /// 格式: "    Finished action for scope"
-    /// 自动在前面添加空行
-    pub fn finish(&self, action: &str, scope: &str) {
-        eprintln!();
-        eprintln!(
-            "{:>12} {} for {} scope",
-            self.green.apply_to("Finished"),
-            action,
-            scope
-        );
-    }
-
-    /// 显示完成消息（简单版本）
-    /// 格式: "    Finished action"
-    #[allow(dead_code)]
-    pub fn finish_simple(&self, action: &str) {
-        eprintln!("{:>12} {}", self.green.apply_to("Finished"), action);
-    }
-
     /// 显示统计信息
     /// 格式: "             12 files, 45 sections"
     pub fn stats(&self, items: &[(&str, usize)]) {
@@ -118,11 +111,99 @@ impl Output {
         eprintln!("{:>12} {}", "", self.dim.apply_to(parts.join(", ")));
     }
 
-    /// 显示查询信息（右对齐）
-    #[allow(dead_code)]
-    pub fn query_info(&self, query: &str) {
-        eprintln!("{:>12} {}", self.green.apply_to("Query"), query);
+    // === 结果显示方法 ===
+
+    /// 显示搜索结果（列表格式，带相似度分数）
+    pub fn search_results(&self, results: &[QueryResult]) {
+        let total = results.len();
+        for (i, result) in results.iter().enumerate() {
+            self.result_item(i + 1, total, result);
+
+            // 只在非最后一个结果后添加空行分隔
+            if i < results.len() - 1 {
+                println!();
+            }
+        }
     }
+
+    /// 显示列表结果（列表格式，不带分数）
+    pub fn list_results(&self, results: &[QueryResult]) {
+        let total = results.len();
+        for (i, result) in results.iter().enumerate() {
+            // 创建一个不带分数的副本
+            let mut list_result = result.clone();
+            list_result.score = None;
+
+            self.result_item(i + 1, total, &list_result);
+
+            // 只在非最后一个结果后添加空行分隔
+            if i < results.len() - 1 {
+                println!();
+            }
+        }
+    }
+
+    /// 显示树形结果（层级结构，带相似度分数）
+    pub fn tree_results(&self, tree: &MemoryTree) {
+        for (i, child) in tree.root.children.iter().enumerate() {
+            let is_last = i == tree.root.children.len() - 1;
+            self.display_tree_node(child, "", is_last);
+        }
+    }
+
+    // === 消息提示方法 ===
+
+    /// 显示提示消息（标准输出，右对齐）
+    pub fn info(&self, message: &str) {
+        println!("{:>12} {}", "", message);
+    }
+
+    /// 显示注意事项（右对齐）
+    pub fn note(&self, message: &str) {
+        eprintln!("{:>12} {}", self.dim.apply_to("Note"), message);
+    }
+
+    /// 显示警告（黄色，右对齐）
+    /// 自动在前后添加空行
+    pub fn warning(&self, message: &str) {
+        eprintln!();
+        eprintln!(
+            "{:>12} {}",
+            Style::new().yellow().bold().apply_to("Warning"),
+            message
+        );
+        eprintln!();
+    }
+
+    /// 显示错误（红色，右对齐）
+    pub fn error(&self, message: &str) {
+        eprintln!(
+            "{:>12} {}",
+            Style::new().red().bold().apply_to("Error"),
+            message
+        );
+    }
+
+    // === 用户交互方法 ===
+
+    /// 显示确认提示并读取用户输入
+    /// 返回用户是否输入了 "yes"
+    pub fn confirm(&self, expected: &str) -> io::Result<bool> {
+        println!();
+        print!(
+            "{:>12} Type {} to confirm: ",
+            "",
+            Style::new().green().bold().apply_to(expected)
+        );
+        io::stdout().flush()?;
+
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+
+        Ok(input.trim() == expected)
+    }
+
+    // === 私有辅助方法 ===
 
     /// 显示单个结果项（统一格式）
     /// 格式: "[1/5] 0.89 id (date) [tag1, tag2]" 或 "[1/10] id (date) [tag1, tag2]"
@@ -137,6 +218,7 @@ impl Output {
         let date = chrono::DateTime::from_timestamp_millis(result.updated_at)
             .map(|dt| dt.format("%Y-%m-%d %H:%M").to_string())
             .unwrap_or_else(|| "N/A".to_string());
+
         // 构建索引部分
         let index_part = format!("{}/{}", index, total);
 
@@ -175,83 +257,37 @@ impl Output {
         }
     }
 
-    /// 显示搜索结果列表（自动处理分隔和格式化）
-    pub fn search_results(&self, results: &[QueryResult]) {
-        let total = results.len();
-        for (i, result) in results.iter().enumerate() {
-            self.result_item(i + 1, total, result);
+    /// 递归显示树节点（私有辅助方法）
+    fn display_tree_node(&self, node: &MemoryNode, prefix: &str, is_last: bool) {
+        if let Some(memory) = &node.memory {
+            // 绘制树枝
+            let branch = if is_last { "└─" } else { "├─" };
 
-            // 只在非最后一个结果后添加空行分隔
-            if i < results.len() - 1 {
-                println!();
+            // 提取第一行作为预览
+            let preview = memory
+                .content
+                .lines()
+                .next()
+                .unwrap_or("")
+                .chars()
+                .take(70)
+                .collect::<String>();
+
+            // 显示节点
+            let score_str = memory
+                .score
+                .map_or("?".to_string(), |s| format!("{:.2}", s));
+
+            println!("{}{} {} [{}]", prefix, branch, preview, score_str);
+
+            // 递归输出子节点
+            let new_prefix = format!("{}{}   ", prefix, if is_last { " " } else { "│" });
+
+            for (i, child) in node.children.iter().enumerate() {
+                let child_is_last = i == node.children.len() - 1;
+                self.display_tree_node(child, &new_prefix, child_is_last);
             }
         }
-    }
-
-    /// 显示列表（自动处理分隔和格式化）
-    pub fn list_items(&self, results: &[QueryResult]) {
-        let total = results.len();
-        for (i, result) in results.iter().enumerate() {
-            // 创建一个不带分数的副本
-            let mut list_result = result.clone();
-            list_result.score = None;
-
-            self.result_item(i + 1, total, &list_result);
-
-            // 只在非最后一个结果后添加空行分隔
-            if i < results.len() - 1 {
-                println!();
-            }
-        }
-    }
-
-    /// 显示注意事项（右对齐）
-    pub fn note(&self, message: &str) {
-        eprintln!("{:>12} {}", self.dim.apply_to("Note"), message);
-    }
-
-    /// 显示警告（黄色，右对齐）
-    /// 自动在前面添加空行
-    pub fn warning(&self, message: &str) {
-        eprintln!();
-        eprintln!(
-            "{:>12} {}",
-            Style::new().yellow().bold().apply_to("Warning"),
-            message
-        );
-        eprintln!();
-    }
-
-    /// 显示错误（红色，右对齐）
-    #[allow(dead_code)]
-    pub fn error(&self, message: &str) {
-        eprintln!(
-            "{:>12} {}",
-            Style::new().red().bold().apply_to("Error"),
-            message
-        );
-    }
-
-    /// 显示提示消息（标准输出，右对齐）
-    pub fn info(&self, message: &str) {
-        println!("{:>12} {}", "", message);
-    }
-
-    /// 显示确认提示并读取用户输入
-    /// 返回用户是否输入了 "yes"
-    pub fn confirm(&self, expected: &str) -> io::Result<bool> {
-        println!();
-        print!(
-            "{:>12} Type {} to confirm: ",
-            "",
-            Style::new().green().bold().apply_to(expected)
-        );
-        io::stdout().flush()?;
-
-        let mut input = String::new();
-        io::stdin().read_line(&mut input)?;
-
-        Ok(input.trim() == expected)
     }
 }
 

@@ -8,6 +8,8 @@ use memo_local::LocalStorageClient;
 use memo_types::{Memory, MemoryBuilder, StorageBackend, StorageConfig};
 use walkdir::WalkDir;
 
+// === 公开接口 ===
+
 pub async fn embed(
     input: String,
     user_tags: Option<Vec<String>>,
@@ -100,6 +102,8 @@ pub async fn embed(
     Ok(())
 }
 
+// === 输入类型处理 ===
+
 /// 嵌入目录中的所有 markdown 文件
 async fn embed_directory(
     model: &EmbeddingModel,
@@ -180,79 +184,6 @@ async fn embed_file(
     Ok(())
 }
 
-/// 规范化文本用于嵌入（移除多余空白符，提高匹配一致性）
-fn normalize_for_embedding(text: &str) -> String {
-    text.split_whitespace().collect::<Vec<_>>().join(" ")
-}
-
-/// 检查重复记忆，如果发现则终止程序
-/// 返回 Ok(()) 表示无重复，可以继续嵌入
-async fn check_duplicate_and_abort_if_found(
-    storage: &LocalStorageClient,
-    vector: &[f32],
-    threshold: f32,
-    force: bool,
-) -> Result<()> {
-    // 如果是强制模式，跳过检查
-    if force {
-        return Ok(());
-    }
-
-    let output = Output::new();
-    output.status("Checking", "for similar memories");
-
-    // 使用向量搜索检查相似记忆
-    let similar_memories = storage
-        .search_by_vector(vector.to_vec(), 5, threshold, None)
-        .await?;
-
-    if !similar_memories.is_empty() {
-        // 检测到相似记忆，输出详细信息并取消嵌入
-        output.warning(&format!(
-            "Found {} similar memories (threshold: {:.2})",
-            similar_memories.len(),
-            threshold
-        ));
-
-        // 显示相似记忆
-        output.search_results(&similar_memories);
-
-        // 根据相似记忆数量提供更具体的建议
-        match similar_memories.len() {
-            1 => {
-                let id = &similar_memories[0].id;
-                output.note(&format!(
-                    "Consider updating the existing memory: memo update {}",
-                    id
-                ));
-                output.note("Or delete it and add new: memo delete <id>, then embed again");
-            }
-            2 => {
-                let id1 = &similar_memories[0].id;
-                let id2 = &similar_memories[1].id;
-                output.note(&format!(
-                    "Consider merging similar memories: memo merge {} {}",
-                    id1, id2
-                ));
-                output.note("Or update the most relevant one: memo update <id>");
-            }
-            _ => {
-                output.note("Consider reorganizing memories:");
-                output.note("  - Merge overlapping content: memo merge <id1> <id2> ...");
-                output.note("  - Update the most relevant one: memo update <id>");
-                output.note("  - Delete outdated ones: memo delete <id>");
-            }
-        }
-
-        output.note("Or use --force to add anyway (not recommended)");
-        output.error("Embedding cancelled due to similar memories");
-
-        std::process::exit(1);
-    }
-
-    Ok(())
-}
-
 /// 嵌入纯文本字符串
 async fn embed_text(
     model: &EmbeddingModel,
@@ -325,4 +256,79 @@ async fn embed_section(
     storage.insert(memory).await?;
 
     Ok(())
+}
+
+// === 辅助函数 ===
+
+/// 检查重复记忆，如果发现则终止程序
+/// 返回 Ok(()) 表示无重复，可以继续嵌入
+async fn check_duplicate_and_abort_if_found(
+    storage: &LocalStorageClient,
+    vector: &[f32],
+    threshold: f32,
+    force: bool,
+) -> Result<()> {
+    // 如果是强制模式，跳过检查
+    if force {
+        return Ok(());
+    }
+
+    let output = Output::new();
+    output.status("Checking", "for similar memories");
+
+    // 使用向量搜索检查相似记忆
+    let similar_memories = storage
+        .search_by_vector(vector.to_vec(), 5, threshold, None)
+        .await?;
+
+    if !similar_memories.is_empty() {
+        // 检测到相似记忆，输出详细信息并取消嵌入
+        output.warning(&format!(
+            "Found {} similar memories (threshold: {:.2})",
+            similar_memories.len(),
+            threshold
+        ));
+
+        // 显示相似记忆
+        output.search_results(&similar_memories);
+
+        // 根据相似记忆数量提供更具体的建议
+        match similar_memories.len() {
+            1 => {
+                let id = &similar_memories[0].id;
+                output.note(&format!(
+                    "Consider updating the existing memory: memo update {}",
+                    id
+                ));
+                output.note("Or delete it and add new: memo delete <id>, then embed again");
+            }
+            2 => {
+                let id1 = &similar_memories[0].id;
+                let id2 = &similar_memories[1].id;
+                output.note(&format!(
+                    "Consider merging similar memories: memo merge {} {}",
+                    id1, id2
+                ));
+                output.note("Or update the most relevant one: memo update <id>");
+            }
+            _ => {
+                output.note("Consider reorganizing memories:");
+                output.note("  - Merge overlapping content: memo merge <id1> <id2> ...");
+                output.note("  - Update the most relevant one: memo update <id>");
+                output.note("  - Delete outdated ones: memo delete <id>");
+            }
+        }
+
+        output.note("Or use --force to add anyway (not recommended)");
+        output.error("Embedding cancelled due to similar memories");
+
+        std::process::exit(1);
+    }
+
+    Ok(())
+}
+
+/// 规范化文本用于嵌入（移除多余空白符，提高匹配一致性）
+fn normalize_for_embedding(text: &str) -> String {
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
 }

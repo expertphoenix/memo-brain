@@ -32,7 +32,10 @@ fn main() -> Result<()> {
 
     runtime.block_on(async {
         match args.command {
+            // 初始化
             cli::Commands::Init { local } => service::init::initialize(local).await,
+
+            // 核心操作
             cli::Commands::Embed {
                 input,
                 tags,
@@ -47,18 +50,25 @@ fn main() -> Result<()> {
                 threshold,
                 after,
                 before,
+                tree,
                 local,
                 global,
             } => {
-                service::search::search(&query, limit, threshold, after, before, local, global)
-                    .await
+                service::search::search(service::search::SearchOptions {
+                    query,
+                    limit,
+                    threshold,
+                    after,
+                    before,
+                    tree,
+                    force_local: local,
+                    force_global: global,
+                })
+                .await
             }
             cli::Commands::List { local, global } => service::list::list(local, global).await,
-            cli::Commands::Clear {
-                local,
-                global,
-                force,
-            } => service::clear::clear(local, global, force).await,
+
+            // 记忆管理
             cli::Commands::Update {
                 id,
                 content,
@@ -66,12 +76,6 @@ fn main() -> Result<()> {
                 local,
                 global,
             } => service::update::update(&id, content, tags, local, global).await,
-            cli::Commands::Delete {
-                id,
-                local,
-                global,
-                force,
-            } => service::delete::delete(&id, local, global, force).await,
             cli::Commands::Merge {
                 ids,
                 content,
@@ -79,6 +83,17 @@ fn main() -> Result<()> {
                 local,
                 global,
             } => service::merge::merge(ids, content, tags, local, global).await,
+            cli::Commands::Delete {
+                id,
+                local,
+                global,
+                force,
+            } => service::delete::delete(&id, local, global, force).await,
+            cli::Commands::Clear {
+                local,
+                global,
+                force,
+            } => service::clear::clear(local, global, force).await,
         }
     })
 }
