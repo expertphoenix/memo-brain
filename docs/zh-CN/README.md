@@ -7,6 +7,7 @@
 ## ✨ 特性
 
 - 🔍 **语义搜索** - 基于向量相似度的智能搜索，而非简单的关键词匹配
+- 🌲 **记忆树** - 通过递归语义搜索，层次化探索关联记忆
 - 🤖 **AI Agent 集成** - 内置 Skill，支持 Cursor、Windsurf、Claude Code 等 AI 编码工具
 - 🧠 **智能重复检测** - 自动检测相似记忆，避免重复添加
 - 🔄 **记忆管理** - 更新、删除、合并记忆，便于组织整理
@@ -24,6 +25,7 @@
 | `memo init` | 初始化配置（可选） | `memo init --local` |
 | `memo embed <input>` | 嵌入文本/文件/目录 | `memo embed "笔记内容" --tags rust,cli` |
 | `memo search <query>` | 语义搜索记忆 | `memo search "Rust 最佳实践" --after 2026-01-20` |
+| `memo search <query> --tree` | 记忆树搜索 | `memo search "异步模式" --tree -n 20` |
 | `memo list` | 列出所有记忆 | `memo list` |
 | `memo update <id>` | 更新已有记忆 | `memo update abc123 --content "新内容"` |
 | `memo merge <ids>...` | 合并多条记忆 | `memo merge id1 id2 id3 --content "整合内容"` |
@@ -33,7 +35,8 @@
 **常用参数：**
 - `-t, --tags` - 添加标签（逗号分隔）
 - `--after / --before` - 时间范围过滤（格式：`YYYY-MM-DD` 或 `YYYY-MM-DD HH:MM`）
-- `-n, --limit` - 搜索结果数量（默认：5）
+- `-n, --limit` - 搜索结果数量（默认：5，树模式：最大总节点数）
+- `--tree` - 以层次树显示结果（递归语义搜索）
 - `-l, --local` - 使用本地数据库
 - `-g, --global` - 使用全局数据库
 
@@ -78,6 +81,9 @@ memo search "Rust 最佳实践"
 
 # 按时间范围搜索
 memo search "开发经验" --after 2026-01-20 --limit 10
+
+# 记忆树搜索（递归语义搜索）
+memo search "异步模式" --tree -n 20
 
 # 列出所有记忆
 memo list
@@ -247,12 +253,35 @@ memo embed "相似内容" --force  # 跳过重复检测
 # 基于时间的搜索
 memo search "项目更新" --after 2026-01-20 --before 2026-01-31
 
+# 记忆树搜索（层次化探索）
+memo search "错误处理模式" --tree -n 30
+# 返回树状结构，展示不同语义层级的相关记忆
+
 # 多项目管理
 cd project-a && memo embed ./docs --local --tags project-a
 cd project-b && memo init --local && memo embed ./docs --tags project-b
 ```
 
 ## ❓ 常见问题
+
+<details>
+<summary><strong>什么是记忆树搜索？</strong></summary>
+
+记忆树（`--tree` 参数）通过递归查找相关记忆，将搜索结果以层次结构展示：
+
+- **第 1 层**：与查询直接匹配的记忆（最高相似度）
+- **第 2+ 层**：使用父记忆作为种子查找的相关记忆
+- **智能过滤**：使用自适应阈值和标签重叠确保相关性
+- **去重**：每条记忆在树中只出现一次
+
+使用场景示例：
+- 探索相互关联的知识（如"异步编程" → 相关模式 → 错误处理）
+- 发现你忘记搜索的相关上下文
+- 理解不同记忆之间的关系
+
+注意：树模式下，`-n/--limit` 控制最大总节点数，而非仅顶层结果数。
+
+</details>
 
 <details>
 <summary><strong>如何切换不同的嵌入模型？</strong></summary>

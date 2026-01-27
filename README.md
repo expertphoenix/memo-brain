@@ -7,6 +7,7 @@ A high-performance semantic search memory store tool powered by vector database.
 ## ✨ Features
 
 - 🔍 **Semantic Search** - Intelligent search based on vector similarity, not just keyword matching
+- 🌲 **Memory Tree** - Hierarchical exploration of related memories with recursive semantic search
 - 🤖 **AI Agent Integration** - Built-in skill for Cursor, Windsurf, Claude Code, and other AI coding tools
 - 🧠 **Smart Duplicate Detection** - Automatically detects similar memories to prevent duplicates
 - 🔄 **Memory Management** - Update, delete, and merge memories for better organization
@@ -24,6 +25,7 @@ A high-performance semantic search memory store tool powered by vector database.
 | `memo init` | Initialize configuration (optional) | `memo init --local` |
 | `memo embed <input>` | Embed text/file/directory | `memo embed "note content" --tags rust,cli` |
 | `memo search <query>` | Semantic search memories | `memo search "Rust best practices" --after 2026-01-20` |
+| `memo search <query> --tree` | Search with memory tree | `memo search "async patterns" --tree -n 20` |
 | `memo list` | List all memories | `memo list` |
 | `memo update <id>` | Update existing memory | `memo update abc123 --content "new content"` |
 | `memo merge <ids>...` | Merge multiple memories | `memo merge id1 id2 id3 --content "merged"` |
@@ -33,7 +35,8 @@ A high-performance semantic search memory store tool powered by vector database.
 **Common Options:**
 - `-t, --tags` - Add tags (comma-separated)
 - `--after / --before` - Time range filter (format: `YYYY-MM-DD` or `YYYY-MM-DD HH:MM`)
-- `-n, --limit` - Number of search results (default: 5)
+- `-n, --limit` - Number of search results (default: 5, tree mode: max total nodes)
+- `--tree` - Display results as hierarchical tree (recursive semantic search)
 - `-l, --local` - Use local database
 - `-g, --global` - Use global database
 
@@ -78,6 +81,9 @@ memo search "Rust best practices"
 
 # Search with time range
 memo search "development experience" --after 2026-01-20 --limit 10
+
+# Search as memory tree (recursive semantic search)
+memo search "async patterns" --tree -n 20
 
 # List all memories
 memo list
@@ -247,12 +253,35 @@ memo embed "Similar content" --force  # Skip duplicate check
 # Time-based search
 memo search "project updates" --after 2026-01-20 --before 2026-01-31
 
+# Memory tree search (hierarchical exploration)
+memo search "error handling patterns" --tree -n 30
+# Returns a tree structure showing related memories at different semantic levels
+
 # Multi-project management
 cd project-a && memo embed ./docs --local --tags project-a
 cd project-b && memo init --local && memo embed ./docs --tags project-b
 ```
 
 ## ❓ FAQ
+
+<details>
+<summary><strong>What is Memory Tree search?</strong></summary>
+
+Memory Tree (`--tree` flag) displays search results in a hierarchical structure by recursively finding related memories:
+
+- **Layer 1**: Direct matches to your query (highest similarity)
+- **Layer 2+**: Related memories found using parent memories as seeds
+- **Smart filtering**: Uses adaptive thresholds and tag overlap to ensure relevance
+- **Deduplication**: Each memory appears only once in the tree
+
+Example use cases:
+- Explore interconnected knowledge (e.g., "async programming" → related patterns → error handling)
+- Discover related context you forgot to search for
+- Understand relationships between different memories
+
+Note: In tree mode, `-n/--limit` controls the maximum total nodes, not just top-level results.
+
+</details>
 
 <details>
 <summary><strong>How to switch to a different embedding model?</strong></summary>
