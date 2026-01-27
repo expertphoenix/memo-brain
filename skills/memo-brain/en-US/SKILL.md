@@ -16,8 +16,8 @@ Record and retrieve valuable knowledge using vector database semantic search.
 | `memo embed <text>` | Record memory (text only) | `memo embed "Context:... Solution:..." --tags rust,cli` |
 | `memo search <query>` | Search memories | `memo search "how to use rust async" -n 5` |
 | `memo list` | List all memories | `memo list` |
-| `memo update <id>` | Update memory | `memo update abc123 --content "new content"` |
-| `memo merge <ids>...` | Merge memories | `memo merge id1 id2 --content "merged"` |
+| `memo update <id>` | Update memory | `memo update abc123 --content "new content" --tags rust,async` |
+| `memo merge <ids>...` | Merge memories | `memo merge id1 id2 --content "merged" --tags rust,cli` |
 | `memo delete <id>` | Delete memory | `memo delete abc123` |
 
 **Duplicate Detection:** When embedding detects similar content (similarity > 0.85), prioritize merging or updating instead of blindly creating new memories.
@@ -30,8 +30,6 @@ Record and retrieve valuable knowledge using vector database semantic search.
 | `-n, --limit` | Search result count | 5 |
 | `--threshold` | Similarity threshold (0-1) | 0.7 |
 | `--after / --before` | Time filter (YYYY-MM-DD) | - |
-| `--force` | Skip duplicate detection | - |
-| `-l / -g` | Use local/global database | Current project |
 
 ---
 
@@ -57,32 +55,32 @@ Record and retrieve valuable knowledge using vector database semantic search.
 - Find recent work (use `--after`)
 
 **Search principles:**
-- Use complete question sentences, not just keywords
+- ✅ Use complete, specific question sentences with detailed information (tech stack, scenario, problem)
+- ❌ Don't just list 2-3 keywords (e.g., "rust async trait")
 - Break complex requests into 2-3 sub-questions and search separately
-- Include necessary context for better matching accuracy
+- More detail is better: specific tech stack, specific use case, specific problem description
 
 ### Handling Duplicate Memories
 
-When `memo embed` detects similar memories (similarity > 0.85), **don't skip or force add immediately**. Follow this workflow:
+When `memo embed` detects similar memories (similarity > 0.85), the system automatically displays complete information about similar memories (ID, content, score, date). **Don't skip or force add immediately**. Evaluate based on the displayed information and decide:
 
-**Step-by-step process:**
+**Decision workflow:**
 ```bash
-# 1. After detecting duplicates, search and review existing memory content
-memo search "related keywords" -n 5
+# 1. Review the similar memory information displayed by the system (already includes complete content)
 
 # 2. Evaluate and decide:
 #    - New content refines/supplements existing → use update
 #    - Multiple memories overlap and can be consolidated → use merge
-#    - Completely independent new knowledge → use --force to add
 
 # Example A: Update existing memory (add details)
-memo update abc123 --content "Original content + new details and supplements"
+memo update abc123 --content "Original content + new details and supplements" --tags rust,async
 
 # Example B: Merge similar memories (consolidate overlapping content)
-memo merge id1 id2 --content "Consolidated content covering key points from both memories"
+memo merge id1 id2 --content "Consolidated content covering key points from both memories" --tags rust,error-handling
 
-# Example C: Force add (confirmed as independent knowledge)
-memo embed "Truly independent new knowledge..." --force
+# Example C: Delete and re-embed (complete replacement)
+memo delete abc123
+memo embed "Completely new content..." --tags rust,optimization
 ```
 
 **Decision Priority:**
@@ -189,13 +187,13 @@ Key points: Use thiserror for libs, anyhow for apps" --tags rust,error-handling
 
 ```bash
 # Update memory
-memo update abc123 --content "Updated content" --tags rust,updated
+memo update abc123 --content "Updated content" --tags rust,async
 
 # Delete memory
 memo delete abc123
 
 # Merge multiple memories
-memo merge id1 id2 id3 --content "Merged summary content"
+memo merge id1 id2 id3 --content "Merged summary content" --tags rust,cli
 ```
 
 ### Search Examples
