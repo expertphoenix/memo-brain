@@ -15,7 +15,8 @@ memo-types = { path = "../types" }
 memo-local = { path = "../local" }
 
 # HTTP 客户端（用于 embedding API）
-reqwest = { version = "0.12", features = ["json"] }
+# 使用 rustls-tls 替代 OpenSSL，支持 musl 静态编译
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
 # CLI 依赖
 clap = { version = "4.5", features = ["derive", "env"] }
