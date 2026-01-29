@@ -2,7 +2,7 @@ use console::Style;
 use std::io::{self, Write};
 use std::path::Path;
 
-use memo_types::{MemoryNode, MemoryTree, QueryResult};
+use memo_types::QueryResult;
 
 /// 命令行输出格式化工具
 /// 提供统一的 Cargo 风格输出
@@ -141,18 +141,6 @@ impl Output {
         }
     }
 
-    /// 显示搜索结果（树形格式，带相似度分数）
-    pub fn search_results_tree(&self, tree: &MemoryTree) {
-        for (i, child) in tree.root.children.iter().enumerate() {
-            self.display_result_item_tree(child, "");
-
-            // 只在非最后一个结果后添加空行分隔
-            if i < tree.root.children.len() - 1 {
-                println!();
-            }
-        }
-    }
-
     // === 消息提示方法 ===
 
     /// 显示提示消息（标准输出，右对齐）
@@ -250,72 +238,6 @@ impl Output {
         // 全文显示，每行保持与 ID 对齐的缩进
         for line in content.lines() {
             println!("{}{}", indent, line);
-        }
-    }
-
-    /// 显示单个结果项（树形格式，递归）
-    fn display_result_item_tree(&self, node: &MemoryNode, prefix: &str) {
-        if let Some(memory) = &node.memory {
-            // 格式化层级标签
-            let layer_label = format!("[LAYER{}]", node.layer);
-
-            // 格式化相似度分数
-            let score_str = memory
-                .score
-                .map_or("?".to_string(), |s| format!("[{:.2}]", s));
-
-            // 格式化日期
-            let date = chrono::DateTime::from_timestamp_millis(memory.updated_at)
-                .map(|dt| dt.format("%Y-%m-%d %H:%M").to_string())
-                .unwrap_or_else(|| "N/A".to_string());
-
-            // 格式化标签
-            let tags_part = if memory.tags.is_empty() {
-                String::new()
-            } else {
-                format!(
-                    " {}",
-                    self.dim.apply_to(format!("[{}]", memory.tags.join(", ")))
-                )
-            };
-
-            // 第一行：缩进 + 层级标签 + 分数 + ID + 日期 + 标签
-            println!(
-                "{}{} {} {} {}{}",
-                prefix,
-                self.dim.apply_to(&layer_label),
-                self.green.apply_to(&score_str),
-                self.bold.apply_to(&memory.id),
-                self.dim.apply_to(format!("({})", date)),
-                tags_part
-            );
-
-            // 内容缩进：prefix长度 + 层级标签长度 + 1空格 + 7个空格（对齐到分数后）
-            // [LAYER1] = 8字符，加1个空格 + 7个分数空格 = 16字符
-            let content_indent = " ".repeat(prefix.len() + 9 + 7);
-
-            // 后续行：纯文本内容，无视觉元素
-            for line in memory.content.lines() {
-                println!("{}{}", content_indent, line);
-            }
-
-            // 递归输出子节点（子节点的层级标签往前缩进2个空格）
-            if !node.children.is_empty() {
-                // 内容和子节点之间先加一个空行
-                println!();
-
-                // 子节点前缀 = 父节点prefix + 7个空格
-                let child_prefix = format!("{}{}", prefix, " ".repeat(7));
-
-                for (i, child) in node.children.iter().enumerate() {
-                    self.display_result_item_tree(child, &child_prefix);
-
-                    // 只在非最后一个结果后添加空行分隔
-                    if i < node.children.len() - 1 {
-                        println!();
-                    }
-                }
-            }
         }
     }
 }

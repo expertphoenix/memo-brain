@@ -142,8 +142,8 @@ memo search <query> [OPTIONS]
 | Arg/Option | Description | Default |
 |------------|-------------|---------|
 | `<query>` | Search query string | - |
-| `-n, --limit` | Maximum total nodes to return | 5 |
-| `-t, --threshold` | Similarity threshold (0-1) | 0.7 |
+| `-n, --limit` | Maximum results to return | 5 |
+| `-t, --threshold` | Similarity threshold (0-1) | 0.3 |
 | `--after` | Time range: after | - |
 | `--before` | Time range: before | - |
 | `-l, --local` | Use local database | - |
@@ -156,13 +156,20 @@ memo search <query> [OPTIONS]
 
 ### How It Works
 
-- Returns hierarchical structure of related memories
-- Layer 1: Direct matches to query
-- Layer 2+: Related memories found using parent memories as seeds
-- Uses adaptive thresholds and tag filtering for relevance
-- Each memory appears only once (deduplication)
-- Supports time filtering with `--after` and `--before`
-- `-n/--limit` controls maximum total results across all layers
+**Search Process:**
+1. Vector similarity search with configurable threshold (default: 0.3)
+2. Optional reranking for improved relevance (if configured)
+3. Returns top results sorted by score
+
+**Reranking (Optional):**
+- Configure `rerank_api_key` in `config.toml` to enable reranking
+- Supports Cohere and Jina rerank APIs
+- Improves search precision by reordering vector search results
+- Falls back to vector similarity if not configured
+
+**Time Filtering:**
+- Use `--after` and `--before` to filter by date range
+- Supports flexible date formats: `YYYY-MM-DD` or `YYYY-MM-DD HH:MM`
 
 ### Examples
 
@@ -184,37 +191,32 @@ memo search "error handling" --threshold 0.65 -n 30
 
 ### Output Example
 
-Search displays complete memory content including ID, date, tags, and full text in a hierarchical format. Uses `[LAYER1]`, `[LAYER2]` etc. to mark hierarchy levels:
+Search displays complete memory content including ID, date, tags, and full text with relevance scores:
 
 ```
-[LAYER1] [0.85] a1b2c3d4-e5f6-7890-abcd-ef1234567890 (2026-01-27 10:30) [rust, async, trait]
-                Rust async patterns - async-trait usage guide
-                
-                Context: Using async fn directly in traits causes compilation errors
-                Solution: Use #[async_trait] macro on trait definitions and implementations
-                Key Points: The macro must be added to both trait and impl blocks
-                
-       [LAYER2] [0.78] b2c3d4e5-f6a7-8901-bcde-f12345678901 (2026-01-26 14:20) [rust, async, error]
-                       Async error handling - Result<T, E> usage
-                       
-                       Context: Need to handle errors gracefully in async functions
-                       Solution: Return Result<T, Box<dyn Error>> or use anyhow::Result
-                       Key Points: Use ? operator for error propagation
+[0.89] a1b2c3d4-e5f6-7890-abcd-ef1234567890 (2026-01-27 10:30) [rust, async, trait]
+       Rust async patterns - async-trait usage guide
        
-       [LAYER2] [0.75] c3d4e5f6-a7b8-9012-cdef-123456789012 (2026-01-25 09:15) [rust, tokio, runtime]
-                       Tokio runtime configuration - Multi-threaded vs Single-threaded
-                       
-                       Context: Choose appropriate Tokio runtime mode
-                       Solution: Use #[tokio::main] for multi-threaded, current_thread for single-threaded
-                       Key Points: Select based on application workload characteristics
+       Context: Using async fn directly in traits causes compilation errors
+       Solution: Use #[async_trait] macro on trait definitions and implementations
+       Key Points: The macro must be added to both trait and impl blocks
 
-[LAYER1] [0.82] f9a8b7c6-d5e4-3210-fedc-ba9876543210 (2026-01-26 15:45) [rust, error]
-                Rust error handling best practices
-                
-                Context: Application and library layers need different error handling strategies
-                Solution: Use anyhow for applications, thiserror for libraries
-                Key Points: Avoid using anyhow in libraries
+[0.85] b2c3d4e5-f6a7-8901-bcde-f12345678901 (2026-01-26 14:20) [rust, async, error]
+       Async error handling - Result<T, E> usage
+       
+       Context: Need to handle errors gracefully in async functions
+       Solution: Return Result<T, Box<dyn Error>> or use anyhow::Result
+       Key Points: Use ? operator for error propagation
+
+[0.82] f9a8b7c6-d5e4-3210-fedc-ba9876543210 (2026-01-26 15:45) [rust, error]
+       Rust error handling best practices
+       
+       Context: Application and library layers need different error handling strategies
+       Solution: Use anyhow for applications, thiserror for libraries
+       Key Points: Avoid using anyhow in libraries
 ```
+
+**Note:** Scores are from reranking if configured, otherwise from vector similarity.
 
 ---
 

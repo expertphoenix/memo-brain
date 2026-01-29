@@ -11,6 +11,7 @@ mod ui;
 // Infrastructure
 mod embedding;
 mod parser;
+mod rerank;
 
 // Business logic
 mod service;

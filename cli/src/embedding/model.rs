@@ -16,6 +16,7 @@ pub struct EmbeddingModel {
 /// 提供商类型
 #[derive(Debug, Clone)]
 enum ProviderType {
+    ZhipuAI, // 智谱 AI（默认）
     OpenAI,
     Ollama,
 }
@@ -60,59 +61,80 @@ impl EmbeddingModel {
         // 优先使用配置中指定的 provider
         if let Some(p) = provider {
             let provider_type = match p.to_lowercase().as_str() {
+                "zhipu" | "zhipuai" | "bigmodel" => ProviderType::ZhipuAI,
                 "ollama" => ProviderType::Ollama,
-                _ => ProviderType::OpenAI,
+                "openai" => ProviderType::OpenAI,
+                _ => {
+                    tracing::warn!("Unknown provider '{}', defaulting to ZhipuAI", p);
+                    ProviderType::ZhipuAI
+                }
             };
 
             let url = base_url.clone().unwrap_or_else(|| match provider_type {
+                ProviderType::ZhipuAI => "https://open.bigmodel.cn/api/paas/v4".to_string(),
                 ProviderType::Ollama => "http://localhost:11434/api".to_string(),
                 ProviderType::OpenAI => "https://api.openai.com/v1".to_string(),
             });
 
+            tracing::debug!("Using provider: {:?}, base_url: {}", provider_type, url);
             return (provider_type, url);
         }
 
         // 根据 base_url 自动推断
-        match base_url {
+        let result = match base_url {
             Some(url) => {
                 if url.contains("localhost") || url.contains("127.0.0.1") || url.contains("ollama")
                 {
                     (ProviderType::Ollama, url.clone())
+                } else if url.contains("bigmodel.cn") || url.contains("zhipu") {
+                    (ProviderType::ZhipuAI, url.clone())
+                } else if url.contains("openai.com") {
+                    (ProviderType::OpenAI, url.clone())
                 } else {
+                    // 其他 OpenAI 兼容接口
                     (ProviderType::OpenAI, url.clone())
                 }
             }
             None => (
-                ProviderType::OpenAI,
-                "https://api.openai.com/v1".to_string(),
+                ProviderType::ZhipuAI,
+                "https://open.bigmodel.cn/api/paas/v4".to_string(),
             ),
-        }
+        };
+
+        tracing::debug!("Inferred provider: {:?}, base_url: {}", result.0, result.1);
+        result
     }
 
-    /// 根据模型名称推断 embedding 维度
+    /// 根据模型名称推断维度
     fn infer_dimension(model: &str) -> usize {
-        // 常见维度模式匹配
-        if model.contains("-3-large") || model.contains("large") && model.contains("3072") {
+        let dimension =
+        // 智谱 AI 模型
+        if model == "embedding-3" {
+            2048 // 默认 2048，支持 256/512/1024/2048
+        } else if model == "embedding-2" {
+            1024 // 固定 1024
+        }
+        // OpenAI 模型
+        else if model.contains("text-embedding-3-large") {
             3072
-        } else if model.contains("384") || model.contains("minilm") {
-            384
-        } else if model.contains("512") || model.contains("small") && model.contains("bge") {
-            512
-        } else if model.contains("768")
-            || model.contains("nomic")
-            || model.contains("v2") && model.contains("jina")
-        {
-            768
-        } else if model.contains("1024")
-            || model.contains("v3")
-            || model.contains("v4")
-            || model.contains("mxbai")
-        {
-            1024
-        } else {
-            // 默认维度
+        } else if model.contains("text-embedding-3-small") || model.contains("text-embedding-ada") {
             1536
         }
+        // Ollama 模型
+        else if model.contains("nomic") {
+            768
+        }
+        // Jina 模型
+        else if model.contains("jina") && model.contains("v3") {
+            1024
+        }
+        // 默认维度（智谱 AI embedding-3）
+        else {
+            2048
+        };
+
+        tracing::debug!("Inferred dimension {} for model '{}'", dimension, model);
+        dimension
     }
 
     /// 获取 embedding 维度
@@ -124,7 +146,9 @@ impl EmbeddingModel {
     pub async fn encode(&self, text: &str) -> Result<Vec<f32>> {
         match self.provider {
             ProviderType::Ollama => self.encode_ollama(text).await,
-            ProviderType::OpenAI => self.encode_openai_compatible(text).await,
+            ProviderType::ZhipuAI | ProviderType::OpenAI => {
+                self.encode_openai_compatible(text).await
+            }
         }
     }
 

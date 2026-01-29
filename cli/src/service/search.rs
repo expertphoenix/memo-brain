@@ -1,15 +1,12 @@
 use anyhow::{Context, Result};
 use chrono::NaiveDateTime;
-use std::collections::HashSet;
 
 use crate::config::Config;
 use crate::embedding::EmbeddingModel;
+use crate::rerank::RerankModel;
 use crate::ui::Output;
 use memo_local::LocalStorageClient;
-use memo_types::{
-    Memory, MemoryNode, MemoryTree, QueryResult, StorageBackend, StorageConfig, TimeRange,
-    TreeSearchConfig,
-};
+use memo_types::{StorageBackend, StorageConfig, TimeRange};
 
 /// Search options
 pub struct SearchOptions {
@@ -67,21 +64,8 @@ pub async fn search(options: SearchOptions) -> Result<()> {
     // 生成查询向量
     let query_vector = model.encode(&query).await?;
 
-    // 使用树搜索模式（带时间过滤）
-    search_as_tree(query_vector, limit, threshold, after, before, &storage, &output).await
-}
-
-/// 树状搜索
-async fn search_as_tree(
-    query_vector: Vec<f32>,
-    limit: usize,
-    threshold: f32,
-    after: Option<String>,
-    before: Option<String>,
-    storage: &LocalStorageClient,
-    output: &Output,
-) -> Result<()> {
-    output.status("Searching", "tree (layer 1)");
+    // 向量搜索
+    output.status("Searching", "database");
 
     // 解析时间过滤参数
     let time_range = if after.is_some() || before.is_some() {
@@ -95,59 +79,69 @@ async fn search_as_tree(
         None
     };
 
-    // 构建树配置
-    let max_nodes = if limit < 10 { 50 } else { limit * 10 };
-    let config = TreeSearchConfig::new(threshold, max_nodes);
+    // 使用较大的候选集（用于 rerank）
+    // 候选集取 100 或 limit*5 中的较大值，确保有足够的候选供 rerank
+    let candidate_limit = 100_usize.max(limit * 5);
+    tracing::debug!(
+        "Searching with candidate_limit={}, threshold={}, final_limit={}",
+        candidate_limit,
+        threshold,
+        limit
+    );
 
-    // 生成各层阈值
-    let thresholds = config.generate_thresholds();
-
-    // 第一层搜索（应用时间过滤）
-    let first_results = storage
-        .search_by_vector(query_vector, config.branch_limit, thresholds[0], time_range.clone())
+    let mut results = storage
+        .search_by_vector(query_vector, candidate_limit, threshold, time_range)
         .await?;
 
-    if first_results.is_empty() {
+    if results.is_empty() {
         output.info(&format!(
             "No results found above threshold {:.2}",
-            thresholds[0]
+            threshold
         ));
+        output.note("Try lowering the threshold with -t/--threshold option");
         return Ok(());
     }
 
-    // 构建树
-    let mut visited = HashSet::new();
-    let mut total_nodes = 0;
+    tracing::debug!("Found {} candidates for reranking", results.len());
 
-    let mut root = MemoryNode {
-        memory: None,
-        children: Vec::new(),
-        layer: 0,
-    };
+    // 使用 rerank 重排序（rerank 是必须的）
+    output.status("Reranking", "results");
 
-    for result in first_results {
-        visited.insert(result.id.clone());
-        total_nodes += 1;
+    let rerank_model = RerankModel::new(
+        config.rerank_api_key.clone(),
+        config.rerank_model.clone(),
+        config.rerank_base_url.clone(),
+    )?;
 
-        let node = expand_node(
-            result,
-            1,
-            &thresholds,
-            &config,
-            &time_range,
-            storage,
-            &mut visited,
-            &mut total_nodes,
-        )
-        .await?;
+    // 准备文档列表（使用引用避免克隆）
+    let documents: Vec<&str> = results.iter().map(|r| r.content.as_str()).collect();
 
-        root.children.push(node);
+    // 调用 rerank（返回 top limit 个结果）
+    let reranked = rerank_model.rerank(&query, &documents, Some(limit)).await?;
+
+    tracing::debug!("Rerank returned {} results", reranked.len());
+
+    // 根据 rerank 结果重新排序
+    let mut reordered_results = Vec::new();
+    for item in &reranked {
+        if let Some(result) = results.get(item.index) {
+            let mut reranked_result = result.clone();
+            // 使用 rerank 分数替代原始相似度分数
+            reranked_result.score = Some(item.score as f32);
+            reordered_results.push(reranked_result);
+
+            tracing::debug!(
+                "Reranked result: index={}, score={:.4}, id={}",
+                item.index,
+                item.score,
+                result.id
+            );
+        }
     }
+    results = reordered_results;
 
-    let tree = MemoryTree { root, total_nodes };
-
-    // 输出树
-    output.search_results_tree(&tree);
+    // 显示结果
+    output.search_results(&results);
 
     Ok(())
 }
@@ -171,102 +165,4 @@ fn parse_datetime(input: &str) -> Result<i64> {
     }
 
     anyhow::bail!("Invalid date format. Use YYYY-MM-DD or YYYY-MM-DD HH:MM")
-}
-
-/// 递归展开节点
-fn expand_node<'a>(
-    result: QueryResult,
-    layer: usize,
-    thresholds: &'a [f32],
-    config: &'a TreeSearchConfig,
-    time_range: &'a Option<TimeRange>,
-    storage: &'a LocalStorageClient,
-    visited: &'a mut HashSet<String>,
-    total_nodes: &'a mut usize,
-) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<MemoryNode>> + 'a>> {
-    Box::pin(async move {
-        let mut node = MemoryNode {
-            memory: Some(result.clone()),
-            children: Vec::new(),
-            layer,
-        };
-
-        // 终止条件
-        if layer >= thresholds.len()
-            || layer >= config.max_depth
-            || *total_nodes >= config.max_nodes
-        {
-            return Ok(node);
-        }
-
-        // 获取完整 Memory（需要 vector 和 tags）
-        let memory = match storage.find_memory_by_id(&result.id).await? {
-            Some(m) => m,
-            None => return Ok(node), // 找不到就不展开
-        };
-
-        // 搜索相关记忆（使用记忆的向量，应用时间过滤）
-        let related =
-            search_related_memories(&memory, layer, thresholds[layer], config, time_range, storage).await?;
-
-        // 递归展开
-        for child_result in related {
-            if visited.contains(&child_result.id) || child_result.id == result.id {
-                continue;
-            }
-
-            visited.insert(child_result.id.clone());
-            *total_nodes += 1;
-
-            if *total_nodes >= config.max_nodes {
-                break;
-            }
-
-            let child = expand_node(
-                child_result,
-                layer + 1,
-                thresholds,
-                config,
-                time_range,
-                storage,
-                visited,
-                total_nodes,
-            )
-            .await?;
-
-            node.children.push(child);
-        }
-
-        Ok(node)
-    })
-}
-
-/// 搜索相关记忆（核心）
-async fn search_related_memories(
-    memory: &Memory,
-    layer: usize,
-    threshold: f32,
-    config: &TreeSearchConfig,
-    time_range: &Option<TimeRange>,
-    storage: &LocalStorageClient,
-) -> Result<Vec<QueryResult>> {
-    // 使用记忆的向量搜索（应用时间过滤）
-    let mut candidates = storage
-        .search_by_vector(
-            memory.vector.clone(),
-            config.branch_limit * 2,
-            threshold,
-            time_range.clone(),
-        )
-        .await?;
-
-    // 第二层开始：标签过滤
-    if layer >= 1 && config.require_tag_overlap {
-        candidates.retain(|r| {
-            // 标签至少有一个重叠
-            r.tags.iter().any(|t| memory.tags.contains(t))
-        });
-    }
-
-    Ok(candidates.into_iter().take(config.branch_limit).collect())
 }
