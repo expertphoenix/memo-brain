@@ -129,7 +129,7 @@ Running `memo embed file.md --tags important` → Final tags: `[rust, cli, impor
 
 ## `memo search` - Search Memories
 
-Use semantic search to find relevant memories. Supports both list view (default) and hierarchical tree view.
+Search and explore related memories using semantic similarity.
 
 ### Syntax
 
@@ -142,9 +142,8 @@ memo search <query> [OPTIONS]
 | Arg/Option | Description | Default |
 |------------|-------------|---------|
 | `<query>` | Search query string | - |
-| `-n, --limit` | Number of results (tree mode: max total nodes) | 5 |
+| `-n, --limit` | Maximum total nodes to return | 5 |
 | `-t, --threshold` | Similarity threshold (0-1) | 0.7 |
-| `--tree` | Display results as memory tree (recursive semantic search) | `false` |
 | `--after` | Time range: after | - |
 | `--before` | Time range: before | - |
 | `-l, --local` | Use local database | - |
@@ -155,19 +154,15 @@ memo search <query> [OPTIONS]
 - `YYYY-MM-DD` - e.g., `2026-01-20` (00:00)
 - `YYYY-MM-DD HH:MM` - e.g., `2026-01-20 14:30`
 
-### Search Modes
+### How It Works
 
-**List Mode (default):**
-- Returns a flat list of most similar memories
-- Results sorted by similarity score
-
-**Tree Mode (`--tree`):**
 - Returns hierarchical structure of related memories
 - Layer 1: Direct matches to query
 - Layer 2+: Related memories found using parent memories as seeds
 - Uses adaptive thresholds and tag filtering for relevance
 - Each memory appears only once (deduplication)
-- `-n/--limit` controls maximum total nodes across all layers
+- Supports time filtering with `--after` and `--before`
+- `-n/--limit` controls maximum total results across all layers
 
 ### Examples
 
@@ -182,14 +177,14 @@ memo search "Vue tips" --limit 10 --threshold 0.6
 memo search "development experience" --after 2026-01-20
 memo search "meeting notes" --after "2026-01-20 09:00" --before "2026-01-20 18:00"
 
-# Memory tree search (hierarchical exploration)
-memo search "async patterns" --tree -n 20
-memo search "error handling" --tree --threshold 0.65 -n 30
+# Search with more results
+memo search "async patterns" -n 20
+memo search "error handling" --threshold 0.65 -n 30
 ```
 
-### Memory Tree Output Example
+### Output Example
 
-Tree search displays complete memory content, including ID, date, tags, and full text. Uses `[LAYER1]`, `[LAYER2]` etc. to explicitly mark hierarchy levels. Child nodes appear within parent node's content area, with blank lines separating nodes at the same level, and content lines in pure text format:
+Search displays complete memory content including ID, date, tags, and full text in a hierarchical format. Uses `[LAYER1]`, `[LAYER2]` etc. to mark hierarchy levels:
 
 ```
 [LAYER1] [0.85] a1b2c3d4-e5f6-7890-abcd-ef1234567890 (2026-01-27 10:30) [rust, async, trait]

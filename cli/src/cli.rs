@@ -47,7 +47,7 @@ pub enum Commands {
     Search {
         query: String,
 
-        /// Maximum results to return (tree mode: max total nodes)
+        /// Maximum results to return (max total nodes)
         #[arg(short = 'n', long, default_value = "5")]
         limit: usize,
 
@@ -61,10 +61,6 @@ pub enum Commands {
         /// Filter by date before (format: YYYY-MM-DD or YYYY-MM-DD HH:MM)
         #[arg(long)]
         before: Option<String>,
-
-        /// Display results as a tree (recursive semantic search)
-        #[arg(long)]
-        tree: bool,
 
         /// Use local database (./.memo/brain)
         #[arg(short, long)]

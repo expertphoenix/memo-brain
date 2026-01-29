@@ -18,7 +18,6 @@ pub struct SearchOptions {
     pub threshold: f32,
     pub after: Option<String>,
     pub before: Option<String>,
-    pub tree: bool,
     pub force_local: bool,
     pub force_global: bool,
 }
@@ -30,7 +29,6 @@ pub async fn search(options: SearchOptions) -> Result<()> {
         threshold,
         after,
         before,
-        tree,
         force_local,
         force_global,
     } = options;
@@ -69,26 +67,12 @@ pub async fn search(options: SearchOptions) -> Result<()> {
     // 生成查询向量
     let query_vector = model.encode(&query).await?;
 
-    if tree {
-        // 树搜索模式
-        search_as_tree(query_vector, limit, threshold, &storage, &output).await
-    } else {
-        // 普通列表搜索模式
-        search_as_list(
-            query_vector,
-            limit,
-            threshold,
-            after,
-            before,
-            &storage,
-            &output,
-        )
-        .await
-    }
+    // 使用树搜索模式（带时间过滤）
+    search_as_tree(query_vector, limit, threshold, after, before, &storage, &output).await
 }
 
-/// 普通列表搜索
-async fn search_as_list(
+/// 树状搜索
+async fn search_as_tree(
     query_vector: Vec<f32>,
     limit: usize,
     threshold: f32,
@@ -97,7 +81,7 @@ async fn search_as_list(
     storage: &LocalStorageClient,
     output: &Output,
 ) -> Result<()> {
-    output.status("Searching", "database");
+    output.status("Searching", "tree (layer 1)");
 
     // 解析时间过滤参数
     let time_range = if after.is_some() || before.is_some() {
@@ -111,34 +95,6 @@ async fn search_as_list(
         None
     };
 
-    // 使用向量搜索
-    let results = storage
-        .search_by_vector(query_vector, limit, threshold, time_range)
-        .await?;
-
-    // 显示结果
-    if results.is_empty() {
-        output.info(&format!(
-            "No results found above threshold {:.2}",
-            threshold
-        ));
-    } else {
-        output.search_results(&results);
-    }
-
-    Ok(())
-}
-
-/// 树状搜索
-async fn search_as_tree(
-    query_vector: Vec<f32>,
-    limit: usize,
-    threshold: f32,
-    storage: &LocalStorageClient,
-    output: &Output,
-) -> Result<()> {
-    output.status("Searching", "tree (layer 1)");
-
     // 构建树配置
     let max_nodes = if limit < 10 { 50 } else { limit * 10 };
     let config = TreeSearchConfig::new(threshold, max_nodes);
@@ -146,9 +102,9 @@ async fn search_as_tree(
     // 生成各层阈值
     let thresholds = config.generate_thresholds();
 
-    // 第一层搜索
+    // 第一层搜索（应用时间过滤）
     let first_results = storage
-        .search_by_vector(query_vector, config.branch_limit, thresholds[0], None)
+        .search_by_vector(query_vector, config.branch_limit, thresholds[0], time_range.clone())
         .await?;
 
     if first_results.is_empty() {
@@ -178,6 +134,7 @@ async fn search_as_tree(
             1,
             &thresholds,
             &config,
+            &time_range,
             storage,
             &mut visited,
             &mut total_nodes,
@@ -222,6 +179,7 @@ fn expand_node<'a>(
     layer: usize,
     thresholds: &'a [f32],
     config: &'a TreeSearchConfig,
+    time_range: &'a Option<TimeRange>,
     storage: &'a LocalStorageClient,
     visited: &'a mut HashSet<String>,
     total_nodes: &'a mut usize,
@@ -247,9 +205,9 @@ fn expand_node<'a>(
             None => return Ok(node), // 找不到就不展开
         };
 
-        // 搜索相关记忆（使用记忆的向量）
+        // 搜索相关记忆（使用记忆的向量，应用时间过滤）
         let related =
-            search_related_memories(&memory, layer, thresholds[layer], config, storage).await?;
+            search_related_memories(&memory, layer, thresholds[layer], config, time_range, storage).await?;
 
         // 递归展开
         for child_result in related {
@@ -269,6 +227,7 @@ fn expand_node<'a>(
                 layer + 1,
                 thresholds,
                 config,
+                time_range,
                 storage,
                 visited,
                 total_nodes,
@@ -288,15 +247,16 @@ async fn search_related_memories(
     layer: usize,
     threshold: f32,
     config: &TreeSearchConfig,
+    time_range: &Option<TimeRange>,
     storage: &LocalStorageClient,
 ) -> Result<Vec<QueryResult>> {
-    // 使用记忆的向量搜索
+    // 使用记忆的向量搜索（应用时间过滤）
     let mut candidates = storage
         .search_by_vector(
             memory.vector.clone(),
             config.branch_limit * 2,
             threshold,
-            None,
+            time_range.clone(),
         )
         .await?;
 

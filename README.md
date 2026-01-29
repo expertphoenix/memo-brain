@@ -6,8 +6,7 @@ A high-performance semantic search memory store tool powered by vector database.
 
 ## ✨ Features
 
-- 🔍 **Semantic Search** - Intelligent search based on vector similarity, not just keyword matching
-- 🌲 **Memory Tree** - Hierarchical exploration of related memories with recursive semantic search
+- 🔍 **Semantic Search** - Intelligent search based on vector similarity with recursive exploration
 - 🤖 **AI Agent Integration** - Built-in skill for Cursor, Windsurf, Claude Code, and other AI coding tools
 - 🧠 **Smart Duplicate Detection** - Automatically detects similar memories to prevent duplicates
 - 🔄 **Memory Management** - Update, delete, and merge memories for better organization
@@ -25,7 +24,6 @@ A high-performance semantic search memory store tool powered by vector database.
 | `memo init` | Initialize configuration (optional) | `memo init --local` |
 | `memo embed <input>` | Embed text/file/directory | `memo embed "note content" --tags rust,cli` |
 | `memo search <query>` | Semantic search memories | `memo search "Rust best practices" --after 2026-01-20` |
-| `memo search <query> --tree` | Search with memory tree | `memo search "async patterns" --tree -n 20` |
 | `memo list` | List all memories | `memo list` |
 | `memo update <id>` | Update existing memory | `memo update abc123 --content "new content"` |
 | `memo merge <ids>...` | Merge multiple memories | `memo merge id1 id2 id3 --content "merged"` |
@@ -35,8 +33,7 @@ A high-performance semantic search memory store tool powered by vector database.
 **Common Options:**
 - `-t, --tags` - Add tags (comma-separated)
 - `--after / --before` - Time range filter (format: `YYYY-MM-DD` or `YYYY-MM-DD HH:MM`)
-- `-n, --limit` - Number of search results (default: 5, tree mode: max total nodes)
-- `--tree` - Display results as hierarchical tree (recursive semantic search)
+- `-n, --limit` - Number of search results (default: 5, max total nodes)
 - `-l, --local` - Use local database
 - `-g, --global` - Use global database
 
@@ -82,8 +79,8 @@ memo search "Rust best practices"
 # Search with time range
 memo search "development experience" --after 2026-01-20 --limit 10
 
-# Search as memory tree (recursive semantic search)
-memo search "async patterns" --tree -n 20
+# Search with more results
+memo search "async patterns" -n 20
 
 # List all memories
 memo list

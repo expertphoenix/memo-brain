@@ -6,14 +6,13 @@
 
 ## ✨ 特性
 
-- 🔍 **语义搜索** - 基于向量相似度的智能搜索，而非简单的关键词匹配
-- 🌲 **记忆树** - 通过递归语义搜索，层次化探索关联记忆
+- 🔍 **语义搜索** - 基于向量相似度的智能搜索，支持递归探索关联记忆
 - 🤖 **AI Agent 集成** - 内置 Skill，支持 Cursor、Windsurf、Claude Code 等 AI 编码工具
 - 🧠 **智能重复检测** - 自动检测相似记忆，避免重复添加
 - 🔄 **记忆管理** - 更新、删除、合并记忆，便于组织整理
 - 🏷️ **标签管理** - 支持标签分类和 Markdown frontmatter 自动合并
 - ⏰ **时间过滤** - 按时间范围筛选记忆，支持灵活的日期格式
-- 📝 **Markdown 支持** - 自动解析和索引带 frontmatter 的 markdown 文件
+- 📝 **Markdown 支持** - 自动解析和索引带 frontmatter 的 markdown文件
 - 🌐 **OpenAI 兼容** - 支持所有 OpenAI 兼容 API（OpenAI、Azure 等）
 - 🏠 **本地/云端** - 支持 Ollama 本地部署和云端 API
 - ⚡ **高性能** - 使用 LanceDB 向量数据库和 Rust 实现
@@ -25,7 +24,6 @@
 | `memo init` | 初始化配置（可选） | `memo init --local` |
 | `memo embed <input>` | 嵌入文本/文件/目录 | `memo embed "笔记内容" --tags rust,cli` |
 | `memo search <query>` | 语义搜索记忆 | `memo search "Rust 最佳实践" --after 2026-01-20` |
-| `memo search <query> --tree` | 记忆树搜索 | `memo search "异步模式" --tree -n 20` |
 | `memo list` | 列出所有记忆 | `memo list` |
 | `memo update <id>` | 更新已有记忆 | `memo update abc123 --content "新内容"` |
 | `memo merge <ids>...` | 合并多条记忆 | `memo merge id1 id2 id3 --content "整合内容"` |
@@ -35,8 +33,7 @@
 **常用参数：**
 - `-t, --tags` - 添加标签（逗号分隔）
 - `--after / --before` - 时间范围过滤（格式：`YYYY-MM-DD` 或 `YYYY-MM-DD HH:MM`）
-- `-n, --limit` - 搜索结果数量（默认：5，树模式：最大总节点数）
-- `--tree` - 以层次树显示结果（递归语义搜索）
+- `-n, --limit` - 搜索结果数量（默认：5，最大总节点数）
 - `-l, --local` - 使用本地数据库
 - `-g, --global` - 使用全局数据库
 
@@ -82,8 +79,8 @@ memo search "Rust 最佳实践"
 # 按时间范围搜索
 memo search "开发经验" --after 2026-01-20 --limit 10
 
-# 记忆树搜索（递归语义搜索）
-memo search "异步模式" --tree -n 20
+# 搜索更多结果
+memo search "异步模式" -n 20
 
 # 列出所有记忆
 memo list

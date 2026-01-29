@@ -50,7 +50,6 @@ fn main() -> Result<()> {
                 threshold,
                 after,
                 before,
-                tree,
                 local,
                 global,
             } => {
@@ -60,7 +59,6 @@ fn main() -> Result<()> {
                     threshold,
                     after,
                     before,
-                    tree,
                     force_local: local,
                     force_global: global,
                 })
