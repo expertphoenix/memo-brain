@@ -1,6 +1,6 @@
 ---
 name: memo-brain
-description: Manages and retrieves contextual memories across conversations using a vector database. Records experiences, solutions, and user habits. Provides context-aware assistance through semantic search. Use when needing to remember information, search memories, or when the user explicitly asks to "remember this", "search memory", or "do you remember".
+description: Manages and retrieves contextual memories across conversations using a vector database. Records experiences, solutions, and user habits. Provides context-aware assistance through semantic search. Use when needing to remember information, search memories, or when the user explicitly asks to "remember this" or "search memory".
 ---
 
 # Memo Brain Management
@@ -9,27 +9,64 @@ Record and retrieve valuable knowledge using vector database semantic search.
 
 **⚠️ Important: All commands require network access (for embedding API). When using Shell tool, set `required_permissions: ["network"]` or `["all"]`.**
 
-## Commands
+## Quick Reference
 
 | Command | Purpose | Example |
 |---------|---------|---------|
-| `memo embed <text>` | Record memory (text only) | `memo embed "Context:... Solution:..." --tags rust,cli` |
-| `memo search <query>` | Search memories | `memo search "how to use rust async" -n 5` |
-| `memo list` | List all memories | `memo list` |
-| `memo update <id>` | Update memory | `memo update abc123 --content "new content" --tags rust,async` |
-| `memo merge <ids>...` | Merge memories | `memo merge id1 id2 --content "merged" --tags rust,cli` |
+| `memo embed <text>` | Record memory | `memo embed "Context:... Action:..." --tags rust,cli` |
+| `memo search <query> --tree` | Search memories | `memo search "how to fix MySQL timeout" --tree -n 10` |
+| `memo update <id>` | Update memory | `memo update abc123 --content "..." --tags rust` |
+| `memo merge <ids>...` | Merge memories | `memo merge id1 id2 --content "..." --tags rust` |
 | `memo delete <id>` | Delete memory | `memo delete abc123 --force` |
+| `memo list` | List memories | `memo list` |
 
-**Duplicate Detection:** When embedding detects similar content (similarity > 0.85), prioritize merging or updating instead of blindly creating new memories.
+**Duplicate Detection:** When embedding detects similar content (similarity > 0.85), prioritize merging or updating.
 
-## Common Parameters
+---
 
-| Parameter | Purpose | Default |
-|-----------|---------|---------|
-| `-t, --tags` | Add tags (comma-separated) | - |
-| `-n, --limit` | Search result count | 5 |
-| `--threshold` | Similarity threshold (0-1) | 0.7 |
-| `--after / --before` | Time filter (YYYY-MM-DD) | - |
+## Five-Dimensional Memory Model
+
+All memories are described using five dimensions (dimensions are optional, keep at least "Action" and "Result" or "Insight"):
+
+```
+Context → Background, situation, environment
+Intent  → What to do, what to solve
+Action  → What was done, approach, process
+Result  → Outcome, effectiveness
+Insight → What was learned, gotchas, reusable experience
+```
+
+**Simple Knowledge Example (Action + Insight):**
+
+```bash
+memo embed "Rust async-trait usage
+
+Action: Add #[async_trait] macro to both trait and impl
+Insight: Has slight performance overhead (Box allocation), suitable for non-critical paths" --tags rust,async
+```
+
+**Complete Problem-Solving Example (All Five Dimensions):**
+
+```bash
+memo embed "MySQL Connection Timeout - AWS Security Group
+
+Context: Works locally, times out after deploying to AWS
+Intent: Find root cause and fix connection failure
+Action:
+- Check connection pool config (max_connections, timeout) → No effect
+- Restart MySQL → No effect
+- Check MySQL logs, no connection records (key clue)
+- Check AWS security group, port 3306 not open
+Result: Connection restored after opening port 3306 in security group
+Insight: Cloud servers close all ports by default, must check security group before deployment" --tags mysql,cloud,debug
+```
+
+**Flexibility Principles:**
+- Dimensions are optional, order is flexible, labels can be omitted
+- Five dimensions are a thinking framework, not a format template
+- Goal is clear content, not format compliance
+
+See [examples.md](examples.md) for more examples
 
 ---
 
@@ -37,231 +74,133 @@ Record and retrieve valuable knowledge using vector database semantic search.
 
 ### When to Record
 
-**Record when:**
-- Solved complex problem or found clever solution
+**Should record:**
+- Solved complex problem (complete troubleshooting process)
+- Made technical decision (solution comparison and rationale)
+- Discovered valuable knowledge (reusable experience)
 - User explicitly asks ("remember this", "record this")
-- Tool configurations, user preferences, or valuable experiences
 
-**Don't record:**
-- Simple syntax, common knowledge, or temporary workarounds
-- Duplicate content (**search existing memories first**, prioritize merge/update)
+**Recognition signals (trigger complete recording):**
+- Debugging, troubleshooting, fixing process in conversation
+- Tried multiple approaches ("tried X but didn't work")
+- Discussed tech selection, architectural decisions
+- User says "struggled for long time", "finally solved"
+
+**Should not record:**
+- Simple syntax queries, common knowledge
+- Duplicate content (search first, prioritize merge/update)
 
 ### When to Search
 
 **Trigger scenarios:**
-- Similar problem or task ("how did we solve this before")
+- Similar problem ("how did we solve this before")
 - User explicitly asks ("search memory", "do you remember")
-- Before starting new tasks, check for related experience
+- Check related experience before new task
 - Find recent work (use `--after`)
 
-**Search principles:**
-- ✅ Use complete, specific question sentences with detailed information (tech stack, scenario, problem)
-- ❌ Don't just list 2-3 keywords (e.g., "rust async trait")
-- Break complex requests into 2-3 sub-questions and search separately
-- More detail is better: specific tech stack, specific use case, specific problem description
+**Search principles (based on Five-Dimensional Model):**
+
+Vector search relies on semantic understanding; queries should include sufficient context:
+- ✅ Include **Context** (scenario) and **Intent** (goal): Describe your situation and what you want to solve
+- ✅ Use complete question sentences: Like asking an experienced colleague
+- ✅ Prefer `--tree` for recursive associative search
+- ❌ Don't just list keywords (e.g., "rust async trait")
+
+**Query construction:**
+
+| Intent Type | Query Construction | Example |
+|-------------|-------------------|---------|
+| Scenario Replay | Context + Symptoms + Problem | `memo search "MySQL connection keeps timing out after deploying to Alibaba Cloud, how to troubleshoot" --tree` |
+| Decision Recall | Context + Requirements + Decision Point | `memo search "memo-brain needs local embedded vector database, why choose LanceDB" --tree` |
+| Knowledge Query | Use Case + Technical Point | `memo search "Rust project needs async methods in traits, how to implement" --tree` |
+
+**Comparison examples:**
+
+```bash
+# ❌ Queries lacking context
+memo search "why choose LanceDB"
+memo search "MySQL timeout"
+
+# ✅ Queries with context and intent
+memo search "memo-brain needs local embedded vector database, why choose LanceDB" --tree
+memo search "MySQL connection keeps timing out after deploying to Alibaba Cloud, how to troubleshoot" --tree
+```
 
 ### Handling Duplicate Memories
 
-When `memo embed` detects similar memories (similarity > 0.85), the system automatically displays complete information about similar memories (ID, content, score, date). **Don't skip or force add immediately**. Evaluate based on the displayed information and decide:
+Decision priority when similar memories detected (similarity > 0.85):
 
-**Decision workflow:**
+1. **Merge** - Content overlaps and can be consolidated (mind granularity)
+2. **Update** - New content supplements existing memory (avoid oversizing)
+3. **Split** - Existing memory is too large or has multiple topics
+4. **Add New** - Confirmed as completely independent knowledge
+
 ```bash
-# 1. Review the similar memory information displayed by the system (already includes complete content)
+# Update existing memory
+memo update abc123 --content "..." --tags rust,async
 
-# 2. Evaluate and decide:
-#    - New content refines/supplements existing → use update
-#    - Multiple memories overlap and can be consolidated → use merge
+# Merge similar memories
+memo merge id1 id2 --content "..." --tags rust,error-handling
 
-# Example A: Update existing memory (add details)
-memo update abc123 --content "Original content + new details and supplements" --tags rust,async
-
-# Example B: Merge similar memories (consolidate overlapping content)
-memo merge id1 id2 --content "Consolidated content covering key points from both memories" --tags rust,error-handling
-
-# Example C: Delete and re-embed (complete replacement)
+# Delete and re-embed
 memo delete abc123 --force
-memo embed "Completely new content..." --tags rust,optimization
+memo embed "..." --tags rust,optimization
 ```
 
-**Decision Priority:**
-1. ✅ **Merge** - Content overlaps and can be consolidated into one clear, complete memory (**mind granularity, don't merge blindly**)
-2. ✅ **Update** - New content supplements and refines existing memory (**avoid making memory too large**)
-3. ✅ **Split** - Existing memory is too large or contains multiple independent topics (**keep each memory focused on single topic**)
-4. ✅ **Add new** - Confirmed as completely independent new knowledge
-
-**Memory Granularity Control Principles:**
-- ✅ **Right size**: Each memory 100-300 words, not exceeding 500 words
-- ✅ **Single topic**: Each memory focuses on one core topic or problem
-- ✅ **Clear structure**: Context, solution, key points are distinct and easy to understand quickly
-- ❌ **Over-merging**: Don't force together different scenarios or problems
-- ❌ **Over-fragmentation**: Don't split closely related content too finely
-
-**When to split memories:**
-- Single memory exceeds 500 words with multiple independent points
-- Memory covers multiple different scenarios or problems
-- Memory mixes multiple tech stacks or concepts
-- Search often only needs a specific part of the content
+**Granularity control:**
+- Each memory 100-400 words, max 600 words
+- Single topic, focused on one core problem or experience
+- Clear five-dimensional structure, easy to understand
 
 ---
 
-## Content Format
+## Tagging Strategy
 
-**Template:**
-```
-[Topic] - [Short Title]
+Use multi-dimensional tags for classification and filtering (3-6 tags optimal):
 
-Context: [1-2 sentences describing context]
-Solution: [Specific solution or knowledge]
-Key points: [Key points or gotchas]
-```
+| Dimension | Example |
+|-----------|---------|
+| Tech Stack | `rust,async,tokio` |
+| Scenario | `debug,performance,security` |
+| Importance | `important,decision,pitfall` |
+| Project | `memo-brain,project-x` |
 
-**Example:**
-
-```bash
-memo embed "Rust async trait - Use async-trait crate
-
-Context: Direct async fn in trait causes compile error
-Solution: Use #[async_trait] macro on trait and impl
-Key points: Both trait definition and impl need the macro" --tags rust,async
-```
-
-**Note:** Use double quotes to wrap multi-line text. On Windows CMD use `"`, on PowerShell/Bash escape inner quotes or use heredoc.
+**Principles:**
+- Include tech point + scenario/type
+- Avoid overly generic (e.g., "code", "fix")
+- Use specific, distinctive tags (e.g., "mysql" not "database")
 
 ---
 
-## Best Practices
+## Time Filtering
 
-### Content Quality
+| Scenario | Command Example |
+|----------|-----------------|
+| Recent memories | `memo search "database optimization" --after 2026-01-20` |
+| Time range | `memo search "project progress" --after 2026-01-01 --before 2026-01-31` |
+| With tree search | `memo search "recent bugs" --tree --after 2026-01-25 -n 15` |
 
-| Guideline | Description |
-|-----------|-------------|
-| Concise | 100-300 words per memory, max 500 words |
-| Single topic | Each memory focuses on one core problem or topic |
-| Structured | Use consistent template (context, solution, key points) |
-| Specific tags | Precise classification for later filtering |
-| Right granularity | Split if too large, merge if too fragmented |
+---
 
-### Tagging Strategy
-
-```bash
-# By technology
-memo embed "..." --tags vue,frontend
-
-# By importance  
-memo embed "..." --tags important,decision
-
-# By project
-memo embed "..." --tags project-x,config
-
-# By type
-memo embed "..." --tags security,bug-fix
-```
-
-### Common Mistakes
+## Common Mistakes
 
 | ❌ Don't | ✅ Do |
 |----------|--------|
-| Record entire code files | Extract key snippets only |
-| Record every answer | Only valuable insights |
+| Record entire code files | Extract key snippets and approach |
+| Record every answer | Only valuable insights and complete process |
 | Record without checking | Search first to avoid duplicates |
-| Skip when finding similar memory | Prioritize merging or updating existing memories |
+| Skip when finding similar | Prioritize merge or update |
 | Use vague titles | Be specific and descriptive |
-| Too many generic tags | Keep tags focused |
-| `memo search "rust async"` | `memo search "How to handle async in Rust traits"` |
-
----
-
-## Usage Examples
-
-### Record with Tags
-
-```bash
-memo embed "Rust error handling - Use anyhow for app-level code
-
-Context: Application code needs simple error propagation
-Solution: Use anyhow::Result as return type, ? for propagation
-Key points: Use thiserror for libs, anyhow for apps" --tags rust,error-handling
-```
-
-### Memory Management
-
-```bash
-# Update memory
-memo update abc123 --content "Updated content" --tags rust,async
-
-# Delete memory
-memo delete abc123 --force
-
-# Merge multiple memories
-memo merge id1 id2 id3 --content "Merged summary content" --tags rust,cli
-```
-
-### Search Examples
-
-**Simple questions:**
-```bash
-# Good practice: Complete question
-memo search "How to use async functions in Rust traits" -n 5
-
-# Not recommended: Keywords only
-memo search "rust async trait" -n 5
-```
-
-**Complex request breakdown:**
-```bash
-# User request: "I want to build a Rust Web API with async requests and database connections"
-# Recommended breakdown into 3 sub-questions:
-
-memo search "How to build a Web API service in Rust" -n 5
-memo search "Best practices for async request handling in Rust" -n 5
-memo search "How to manage database connection pools in Rust" -n 5
-```
-
-**Parameter adjustments:**
-```bash
-# Get more results
-memo search "How to optimize database query performance" -n 10
-
-# Lower threshold for broader matches
-memo search "What are best practices for error handling" --threshold 0.6
-
-# Time filtering
-memo search "What bugs were fixed recently" --after 2026-01-15
-
-# Combined
-memo search "What are common patterns for Vue components" -n 10 --after 2026-01-01 --threshold 0.6
-```
-
-### Split Memory Example
-
-```bash
-# Scenario: One memory about "CLI output format" with multiple aspects, already 600 words
-# Original memory mixed: line control, error handling, output method rules
-
-# Split into 3 independent memories:
-memo embed "CLI output format - Line and separator control..." --tags rust,cli,output
-memo embed "CLI error exit - exit vs bail choice..." --tags rust,cli,error
-memo embed "CLI output rules - Prohibit direct println..." --tags rust,cli,output
-
-# Delete original oversized memory
-memo delete original-id --force
-```
-
-### Time-Based Search
-
-```bash
-# Recent work
-memo search "database optimization experience" --after 2026-01-15
-
-# Specific period
-memo search "project progress" --after 2026-01-01 --before 2026-01-31 -n 20
-```
+| Too many generic tags | Keep tags focused and distinctive |
+| Keyword-only search | Use complete question sentences |
+| Don't use memory tree | Use `--tree` to discover related knowledge |
+| Force five-dimensional format | Natural expression, dimensions optional |
 
 ---
 
 ## Trigger Phrases
 
 | Action | Trigger Phrases |
-|--------|---------|
-| **Record** | "remember this", "record this", "save this", "summarize and record", "note this down" |
-| **Search** | "how did we solve", "search memory", "do you remember", "recently...", "any similar experience", "have we done this before" |
+|--------|-----------------|
+| **Record** | "remember this", "record this", "summarize experience", "save this" |
+| **Search** | "how did we do it", "search memory", "do you remember", "recently...", "any similar experience" |
