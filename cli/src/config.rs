@@ -90,7 +90,7 @@ fn default_embedding_api_key() -> String {
 }
 
 fn default_embedding_model() -> String {
-    "text-embedding-3-small".to_string()
+    "embedding-3".to_string()
 }
 
 fn default_search_limit() -> usize {
@@ -98,11 +98,19 @@ fn default_search_limit() -> usize {
 }
 
 fn default_similarity_threshold() -> f32 {
-    0.7
+    0.3
 }
 
 fn default_duplicate_threshold() -> f32 {
     0.85
+}
+
+fn default_rerank_model() -> String {
+    "rerank".to_string()
+}
+
+fn default_rerank_api_key() -> String {
+    String::new()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -124,6 +132,14 @@ pub struct Config {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embedding_dimension: Option<usize>,
 
+    // Rerank API 配置（必填）
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rerank_base_url: Option<String>,
+    #[serde(default = "default_rerank_api_key")]
+    pub rerank_api_key: String,
+    #[serde(default = "default_rerank_model")]
+    pub rerank_model: String,
+
     // 搜索配置
     #[serde(default = "default_search_limit")]
     pub search_limit: usize,
@@ -143,15 +159,20 @@ impl Default for Config {
             brain_path: global_memo_dir.join("brain"),
             model_cache_dir: None,
 
-            // 默认使用 OpenAI API (需要用户配置 API key)
+            // 默认使用智谱 AI API
             embedding_provider: None,
             embedding_base_url: None,
             embedding_api_key: String::new(),
-            embedding_model: "text-embedding-3-small".to_string(),
+            embedding_model: "embedding-3".to_string(),
             embedding_dimension: None,
 
+            // Rerank 配置（智谱 AI）
+            rerank_base_url: None,
+            rerank_api_key: String::new(),
+            rerank_model: "rerank".to_string(),
+
             search_limit: 5,
-            similarity_threshold: 0.7,
+            similarity_threshold: 0.3,
             duplicate_threshold: 0.85,
         }
     }
@@ -304,16 +325,19 @@ impl Config {
     pub fn validate_api_key(&self, force_local: bool) -> Result<()> {
         use crate::ui::Output;
 
+        let output = Output::new();
+        let config_path = if force_local {
+            "./.memo/config.toml"
+        } else {
+            "~/.memo/config.toml"
+        };
+
+        // 验证 embedding API key
         if !self.is_ollama() && self.embedding_api_key.is_empty() {
-            let output = Output::new();
             output.warning("Embedding API key not configured");
             output.info(&format!(
                 "Please edit config file: {}",
-                Style::new().cyan().apply_to(if force_local {
-                    "./.memo/config.toml"
-                } else {
-                    "~/.memo/config.toml"
-                })
+                Style::new().cyan().apply_to(config_path)
             ));
             output.info(&format!(
                 "Example: {}",
@@ -321,8 +345,25 @@ impl Config {
                     .dim()
                     .apply_to("embedding_api_key = \"sk-...\"")
             ));
-            anyhow::bail!("Missing required configuration");
+            anyhow::bail!("Missing required configuration: embedding_api_key");
         }
+
+        // 验证 rerank API key
+        if self.rerank_api_key.is_empty() {
+            output.warning("Rerank API key not configured");
+            output.info(&format!(
+                "Please edit config file: {}",
+                Style::new().cyan().apply_to(config_path)
+            ));
+            output.info(&format!(
+                "Example: {}",
+                Style::new()
+                    .dim()
+                    .apply_to("rerank_api_key = \"your-rerank-key\"")
+            ));
+            anyhow::bail!("Missing required configuration: rerank_api_key");
+        }
+
         Ok(())
     }
 }
