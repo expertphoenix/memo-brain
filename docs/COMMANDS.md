@@ -142,8 +142,8 @@ memo search <query> [OPTIONS]
 | Arg/Option | Description | Default |
 |------------|-------------|---------|
 | `<query>` | Search query string | - |
-| `-n, --limit` | Maximum results to return | 5 |
-| `-t, --threshold` | Similarity threshold (0-1) | 0.3 |
+| `-n, --limit` | Maximum results to return | 10 |
+| `-t, --threshold` | Similarity threshold (0-1) | 0.35 |
 | `--after` | Time range: after | - |
 | `--before` | Time range: before | - |
 | `-l, --local` | Use local database | - |
@@ -156,20 +156,49 @@ memo search <query> [OPTIONS]
 
 ### How It Works
 
-**Search Process:**
-1. Vector similarity search with configurable threshold (default: 0.3)
-2. Optional reranking for improved relevance (if configured)
-3. Returns top results sorted by score
+**Multi-Layer Search:**
 
-**Reranking (Optional):**
-- Configure `rerank_api_key` in `config.toml` to enable reranking
-- Supports Cohere and Jina rerank APIs
-- Improves search precision by reordering vector search results
-- Falls back to vector similarity if not configured
+The search uses an intelligent multi-layer approach to discover related memories:
+
+1. **Layer 1 - Direct Search**
+   - Searches for memories directly matching your query
+   - Uses configurable threshold (default: 0.35)
+   - Returns the most relevant matches
+
+2. **Layer 2+ - Related Exploration**
+   - Uses Layer 1 results as "seeds" to find related memories
+   - Each layer uses progressively higher similarity thresholds
+   - Adaptive threshold generation: 0.35 → 0.45 → 0.52 → 0.59 → ...
+   - Explores multiple branches in parallel for better performance
+
+3. **Smart Filtering**
+   - Requires tag overlap in deeper layers (Layer 2+) to ensure relevance
+   - Global deduplication: each memory appears only once
+   - Limits branch exploration to prevent result explosion
+   - Stops when reaching `max_nodes` or `max_depth`
+
+**Intelligent Reranking:**
+
+After multi-layer search, the system decides whether reranking is beneficial:
+
+- **Rerank Skipped** when:
+  - Candidates ≤ limit (no need to re-order)
+  - Candidates ≤ 15 and avg similarity > 0.80 (high quality)
+  - Candidates ≤ 25 and avg similarity > 0.85 (very high quality)
+
+- **Rerank Applied** when:
+  - Larger candidate sets with mixed quality
+  - Lower average similarity scores
+  - Benefits from semantic re-ordering
+
+**Score Types:**
+- `V:` prefix = Vector similarity score (from embedding model)
+- `R:` prefix = Rerank score (from rerank model, more accurate)
 
 **Time Filtering:**
 - Use `--after` and `--before` to filter by date range
 - Supports flexible date formats: `YYYY-MM-DD` or `YYYY-MM-DD HH:MM`
+- Filtering happens after similarity search, doesn't affect ranking
 
 ### Examples
 
@@ -191,32 +220,38 @@ memo search "error handling" --threshold 0.65 -n 30
 
 ### Output Example
 
-Search displays complete memory content including ID, date, tags, and full text with relevance scores:
+Search displays complete memory content with relevance scores, timestamps, and tags:
 
 ```
-[0.89] a1b2c3d4-e5f6-7890-abcd-ef1234567890 (2026-01-27 10:30) [rust, async, trait]
-       Rust async patterns - async-trait usage guide
-       
-       Context: Using async fn directly in traits causes compilation errors
-       Solution: Use #[async_trait] macro on trait definitions and implementations
-       Key Points: The macro must be added to both trait and impl blocks
+      Results 3 results ranked by rerank scores
 
-[0.85] b2c3d4e5-f6a7-8901-bcde-f12345678901 (2026-01-26 14:20) [rust, async, error]
-       Async error handling - Result<T, E> usage
-       
-       Context: Need to handle errors gracefully in async functions
-       Solution: Return Result<T, Box<dyn Error>> or use anyhow::Result
-       Key Points: Use ? operator for error propagation
+[R:0.89] a1b2c3d4-e5f6-7890-abcd-ef1234567890 (2026-01-27 10:30) [rust, async, trait]
+         Rust async patterns - async-trait usage guide
+         
+         Context: Using async fn directly in traits causes compilation errors
+         Solution: Use #[async_trait] macro on trait definitions and implementations
+         Key Points: The macro must be added to both trait and impl blocks
 
-[0.82] f9a8b7c6-d5e4-3210-fedc-ba9876543210 (2026-01-26 15:45) [rust, error]
-       Rust error handling best practices
-       
-       Context: Application and library layers need different error handling strategies
-       Solution: Use anyhow for applications, thiserror for libraries
-       Key Points: Avoid using anyhow in libraries
+[R:0.85] b2c3d4e5-f6a7-8901-bcde-f12345678901 (2026-01-26 14:20) [rust, async, error]
+         Async error handling - Result<T, E> usage
+         
+         Context: Need to handle errors gracefully in async functions
+         Solution: Return Result<T, Box<dyn Error>> or use anyhow::Result
+         Key Points: Use ? operator for error propagation
+
+[V:0.82] f9a8b7c6-d5e4-3210-fedc-ba9876543210 (2026-01-26 15:45) [rust, error]
+         Rust error handling best practices
+         
+         Context: Application and library layers need different error handling strategies
+         Solution: Use anyhow for applications, thiserror for libraries
+         Key Points: Avoid using anyhow in libraries
 ```
 
-**Note:** Scores are from reranking if configured, otherwise from vector similarity.
+**Score Prefixes:**
+- `R:` = Rerank score (more accurate, semantically re-ordered)
+- `V:` = Vector similarity score (from embedding model)
+
+The summary line shows total results and which scoring method was used.
 
 ---
 

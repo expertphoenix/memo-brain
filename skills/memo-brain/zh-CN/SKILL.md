@@ -14,7 +14,7 @@ description: 管理和检索跨对话的上下文记忆，使用向量数据库�
 | 命令 | 用途 | 示例 |
 |---------|---------|---------|
 | `memo embed <text>` | 记录记忆 | `memo embed "境：... 行：..." --tags rust,cli` |
-| `memo search <query> --tree` | 搜索记忆 | `memo search "如何解决 MySQL 连接超时" --tree -n 10` |
+| `memo search <query>` | 搜索记忆 | `memo search "如何解决 MySQL 连接超时" -n 10` |
 | `memo update <id>` | 更新记忆 | `memo update abc123 --content "..." --tags rust` |
 | `memo merge <ids>...` | 合并记忆 | `memo merge id1 id2 --content "..." --tags rust` |
 | `memo delete <id>` | 删除记忆 | `memo delete abc123 --force` |
@@ -103,16 +103,16 @@ memo embed "MySQL 连接超时排查 - 阿里云安全组
 向量搜索依赖语义理解，查询应包含足够的上下文信息：
 - ✅ 包含**境**（场景）和**欲**（意图）：描述你的情况和想解决什么
 - ✅ 使用完整问题句式：就像在问一个有经验的同事
-- ✅ 优先使用 `--tree` 进行递归关联搜索
+- ✅ 搜索会自动进行多层递归关联探索
 - ❌ 不要只罗列关键词（如 "rust async trait"）
 
 **搜索查询构建：**
 
 | 意图类型 | 查询构建 | 示例 |
 |---------|---------|------|
-| 情景复现 | 场景 + 症状 + 问题 | `memo search "部署到阿里云后 MySQL 连接一直超时，如何排查" --tree` |
-| 决策回溯 | 场景 + 需求 + 决策点 | `memo search "memo-brain 需要本地嵌入式向量数据库，为什么选择 LanceDB" --tree` |
-| 知识查询 | 使用场景 + 技术点 | `memo search "Rust 项目中 trait 需要异步方法，如何实现" --tree` |
+| 情景复现 | 场景 + 症状 + 问题 | `memo search "部署到阿里云后 MySQL 连接一直超时，如何排查" -n 10` |
+| 决策回溯 | 场景 + 需求 + 决策点 | `memo search "memo-brain 需要本地嵌入式向量数据库，为什么选择 LanceDB" -n 10` |
+| 知识查询 | 使用场景 + 技术点 | `memo search "Rust 项目中 trait 需要异步方法，如何实现" -n 10` |
 
 **对比示例：**
 
@@ -122,8 +122,8 @@ memo search "为什么选择 LanceDB"
 memo search "MySQL 连接超时"
 
 # ✅ 包含场景和意图的查询
-memo search "memo-brain 需要本地嵌入式向量数据库，为什么选择 LanceDB" --tree
-memo search "部署到阿里云后 MySQL 连接一直超时，如何排查" --tree
+memo search "memo-brain 需要本地嵌入式向量数据库，为什么选择 LanceDB" -n 10
+memo search "部署到阿里云后 MySQL 连接一直超时，如何排查" -n 10
 ```
 
 ### 处理重复记忆
@@ -176,9 +176,9 @@ memo embed "..." --tags rust,optimization
 
 | 场景 | 命令示例 |
 |------|---------|
-| 最近记忆 | `memo search "数据库优化" --after 2026-01-20` |
-| 时间段 | `memo search "项目进展" --after 2026-01-01 --before 2026-01-31` |
-| 结合树搜索 | `memo search "最近的 bug" --tree --after 2026-01-25 -n 15` |
+| 最近记忆 | `memo search "数据库优化" --after 2026-01-20 -n 10` |
+| 时间段 | `memo search "项目进展" --after 2026-01-01 --before 2026-01-31 -n 10` |
+| 结合时间过滤 | `memo search "最近的 bug" --after 2026-01-25 -n 15` |
 
 ---
 
@@ -193,7 +193,7 @@ memo embed "..." --tags rust,optimization
 | 使用模糊标题 | 具体且描述性强 |
 | 太多通用标签 | 保持标签集中且有区分度 |
 | 只用关键词搜索 | 使用完整问题句式 |
-| 不使用记忆树 | 用 `--tree` 发现关联知识 |
+| 限制搜索结果太少 | 适当增加 `-n` 参数以获取更多相关记忆 |
 | 强求五维格式 | 自然表达，维度可选 |
 
 ---

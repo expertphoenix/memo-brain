@@ -14,7 +14,7 @@ Record and retrieve valuable knowledge using vector database semantic search.
 | Command | Purpose | Example |
 |---------|---------|---------|
 | `memo embed <text>` | Record memory | `memo embed "Context:... Action:..." --tags rust,cli` |
-| `memo search <query> --tree` | Search memories | `memo search "how to fix MySQL timeout" --tree -n 10` |
+| `memo search <query>` | Search memories | `memo search "how to fix MySQL timeout" -n 10` |
 | `memo update <id>` | Update memory | `memo update abc123 --content "..." --tags rust` |
 | `memo merge <ids>...` | Merge memories | `memo merge id1 id2 --content "..." --tags rust` |
 | `memo delete <id>` | Delete memory | `memo delete abc123 --force` |
@@ -103,16 +103,16 @@ See [examples.md](examples.md) for more examples
 Vector search relies on semantic understanding; queries should include sufficient context:
 - ✅ Include **Context** (scenario) and **Intent** (goal): Describe your situation and what you want to solve
 - ✅ Use complete question sentences: Like asking an experienced colleague
-- ✅ Prefer `--tree` for recursive associative search
+- ✅ Search automatically performs multi-layer recursive exploration
 - ❌ Don't just list keywords (e.g., "rust async trait")
 
 **Query construction:**
 
 | Intent Type | Query Construction | Example |
 |-------------|-------------------|---------|
-| Scenario Replay | Context + Symptoms + Problem | `memo search "MySQL connection keeps timing out after deploying to Alibaba Cloud, how to troubleshoot" --tree` |
-| Decision Recall | Context + Requirements + Decision Point | `memo search "memo-brain needs local embedded vector database, why choose LanceDB" --tree` |
-| Knowledge Query | Use Case + Technical Point | `memo search "Rust project needs async methods in traits, how to implement" --tree` |
+| Scenario Replay | Context + Symptoms + Problem | `memo search "MySQL connection keeps timing out after deploying to Alibaba Cloud, how to troubleshoot" -n 10` |
+| Decision Recall | Context + Requirements + Decision Point | `memo search "memo-brain needs local embedded vector database, why choose LanceDB" -n 10` |
+| Knowledge Query | Use Case + Technical Point | `memo search "Rust project needs async methods in traits, how to implement" -n 10` |
 
 **Comparison examples:**
 
@@ -122,8 +122,8 @@ memo search "why choose LanceDB"
 memo search "MySQL timeout"
 
 # ✅ Queries with context and intent
-memo search "memo-brain needs local embedded vector database, why choose LanceDB" --tree
-memo search "MySQL connection keeps timing out after deploying to Alibaba Cloud, how to troubleshoot" --tree
+memo search "memo-brain needs local embedded vector database, why choose LanceDB" -n 10
+memo search "MySQL connection keeps timing out after deploying to Alibaba Cloud, how to troubleshoot" -n 10
 ```
 
 ### Handling Duplicate Memories
@@ -176,9 +176,9 @@ Use multi-dimensional tags for classification and filtering (3-6 tags optimal):
 
 | Scenario | Command Example |
 |----------|-----------------|
-| Recent memories | `memo search "database optimization" --after 2026-01-20` |
-| Time range | `memo search "project progress" --after 2026-01-01 --before 2026-01-31` |
-| With tree search | `memo search "recent bugs" --tree --after 2026-01-25 -n 15` |
+| Recent memories | `memo search "database optimization" --after 2026-01-20 -n 10` |
+| Time range | `memo search "project progress" --after 2026-01-01 --before 2026-01-31 -n 10` |
+| With time filtering | `memo search "recent bugs" --after 2026-01-25 -n 15` |
 
 ---
 
@@ -193,7 +193,7 @@ Use multi-dimensional tags for classification and filtering (3-6 tags optimal):
 | Use vague titles | Be specific and descriptive |
 | Too many generic tags | Keep tags focused and distinctive |
 | Keyword-only search | Use complete question sentences |
-| Don't use memory tree | Use `--tree` to discover related knowledge |
+| Limiting results too much | Increase `-n` parameter to get more related memories |
 | Force five-dimensional format | Natural expression, dimensions optional |
 
 ---

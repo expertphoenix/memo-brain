@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 description = "Local storage backend for memo using LanceDB"
+license = "GPL-3.0-only"
 
 [lib]
 name = "memo_local"

@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 description = "Common types and trait definitions for memo storage backends"
+license = "GPL-3.0-only"
 
 [lib]
 name = "memo_types"

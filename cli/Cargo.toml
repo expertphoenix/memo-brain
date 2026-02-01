@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 description = "Vector-based memo system with semantic search"
+license = "GPL-3.0-only"
 
 [[bin]]
 name = "memo"
