@@ -4265,6 +4265,7 @@ dependencies = [
  "console",
  "dialoguer",
  "dirs 5.0.1",
+ "futures",
  "memo-local",
  "memo-types",
  "once_cell",

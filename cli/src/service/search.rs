@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use chrono::NaiveDateTime;
+use futures::future::join_all;
 use std::collections::HashSet;
 
 use crate::config::Config;
@@ -8,7 +9,7 @@ use crate::rerank::RerankModel;
 use crate::ui::Output;
 use memo_local::LocalStorageClient;
 use memo_types::{
-    SearchConfig as MultiLayerSearchConfig, StorageBackend, StorageConfig, TimeRange,
+    QueryResult, SearchConfig as MultiLayerSearchConfig, StorageBackend, StorageConfig, TimeRange,
 };
 
 pub struct SearchOptions {
@@ -164,35 +165,69 @@ async fn multi_layer_search(params: MultiLayerSearchParams<'_>) -> Result<()> {
 
         output.status("Searching", &format!("layer {}", layer_index + 1));
 
-        let mut next_layer_results = Vec::new();
+        // 并行搜索每个分支的相关记忆
+        let search_tasks: Vec<_> = current_layer_results
+            .iter()
+            .map(|result| {
+                let result_id = result.id.clone();
+                let layer_threshold = layer_threshold;
+                let time_range = time_range.clone();
+                let branch_limit = search_config.branch_limit;
+                let require_tag_overlap = search_config.require_tag_overlap;
 
-        for result in &current_layer_results {
-            let memory = match storage.find_memory_by_id(&result.id).await? {
-                Some(m) => m,
-                None => continue,
-            };
+                async move {
+                    // 查找记忆
+                    let memory = storage.find_memory_by_id(&result_id).await?;
+                    let memory = match memory {
+                        Some(m) => m,
+                        None => return Ok::<Vec<QueryResult>, anyhow::Error>(Vec::new()),
+                    };
 
-            let mut related = storage
-                .search_by_vector(
-                    memory.vector.clone(),
-                    search_config.branch_limit * 2,
-                    layer_threshold,
-                    time_range.clone(),
-                )
-                .await?;
+                    // 搜索相关记忆
+                    let mut related = storage
+                        .search_by_vector(
+                            memory.vector.clone(),
+                            branch_limit * 2,
+                            layer_threshold,
+                            time_range,
+                        )
+                        .await?;
 
-            if layer_index >= 1 && search_config.require_tag_overlap {
-                related.retain(|r| r.tags.iter().any(|t| memory.tags.contains(t)));
-            }
-
-            for rel in related.into_iter().take(search_config.branch_limit) {
-                if visited.insert(rel.id.clone()) {
-                    all_candidates.push(rel.clone());
-                    next_layer_results.push(rel);
-
-                    if all_candidates.len() >= max_nodes {
-                        break;
+                    // 标签过滤
+                    if layer_index >= 1 && require_tag_overlap {
+                        related.retain(|r| r.tags.iter().any(|t| memory.tags.contains(t)));
                     }
+
+                    // 限制分支数量
+                    related.truncate(branch_limit);
+
+                    Ok(related)
+                }
+            })
+            .collect();
+
+        // 并行执行所有搜索任务
+        let all_related = join_all(search_tasks).await;
+
+        // 合并结果并去重
+        let mut next_layer_results = Vec::new();
+        for related_result in all_related {
+            match related_result {
+                Ok(related) => {
+                    for rel in related {
+                        if visited.insert(rel.id.clone()) {
+                            all_candidates.push(rel.clone());
+                            next_layer_results.push(rel);
+
+                            if all_candidates.len() >= max_nodes {
+                                break;
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!("Branch search failed: {}", e);
+                    continue;
                 }
             }
 

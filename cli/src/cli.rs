@@ -51,7 +51,7 @@ pub enum Commands {
         #[arg(short = 'n', long, default_value = "10")]
         limit: usize,
 
-        #[arg(short = 't', long, default_value = "0.7")]
+        #[arg(short = 't', long, default_value = "0.35")]
         threshold: f32,
 
         /// Filter by date after (format: YYYY-MM-DD or YYYY-MM-DD HH:MM)
