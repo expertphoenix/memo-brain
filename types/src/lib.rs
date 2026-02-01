@@ -8,7 +8,6 @@ pub mod storage;
 
 // Re-export commonly used types
 pub use models::{
-    MemoMetadata, MemoSection, Memory, MemoryBuilder, MemoryNode, MemoryTree, QueryResult,
-    TimeRange, TreeSearchConfig,
+    MemoMetadata, MemoSection, Memory, MemoryBuilder, QueryResult, SearchConfig, TimeRange,
 };
 pub use storage::{StorageBackend, StorageConfig};

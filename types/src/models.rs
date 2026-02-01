@@ -66,32 +66,17 @@ pub struct MemoMetadata {
     pub tags: Vec<String>,
 }
 
-/// 记忆树（树状搜索结果）
+/// Multi-layer search configuration
 #[derive(Debug, Clone)]
-pub struct MemoryTree {
-    pub root: MemoryNode,
-    pub total_nodes: usize,
+pub struct SearchConfig {
+    pub first_threshold: f32,
+    pub max_depth: usize,
+    pub max_nodes: usize,
+    pub branch_limit: usize,
+    pub require_tag_overlap: bool,
 }
 
-/// 树节点
-#[derive(Debug, Clone)]
-pub struct MemoryNode {
-    pub memory: Option<QueryResult>, // None for root node
-    pub children: Vec<MemoryNode>,
-    pub layer: usize,
-}
-
-/// 树搜索配置
-#[derive(Debug, Clone)]
-pub struct TreeSearchConfig {
-    pub first_threshold: f32,      // 第一层阈值
-    pub max_depth: usize,          // 硬性上限（默认5）
-    pub max_nodes: usize,          // 最大节点数（防爆炸，默认100）
-    pub branch_limit: usize,       // 每层分支数（默认5）
-    pub require_tag_overlap: bool, // 第二层+是否要求标签重叠
-}
-
-impl Default for TreeSearchConfig {
+impl Default for SearchConfig {
     fn default() -> Self {
         Self {
             first_threshold: 0.60,
@@ -103,12 +88,7 @@ impl Default for TreeSearchConfig {
     }
 }
 
-impl TreeSearchConfig {
-    /// 创建树搜索配置（简化接口）
-    ///
-    /// # 参数
-    /// - `first_threshold`: 第一层搜索阈值
-    /// - `max_nodes`: 最大节点数
+impl SearchConfig {
     pub fn new(first_threshold: f32, max_nodes: usize) -> Self {
         Self {
             first_threshold,
@@ -160,7 +140,7 @@ mod tests {
 
     #[test]
     fn test_default_threshold_generation() {
-        let config = TreeSearchConfig::default();
+        let config = SearchConfig::default();
         let thresholds = config.generate_thresholds();
 
         // 默认起始 0.60，应该生成多层递增的阈值
@@ -184,7 +164,7 @@ mod tests {
 
     #[test]
     fn test_high_start_threshold() {
-        let config = TreeSearchConfig::new(0.70, 100);
+        let config = SearchConfig::new(0.70, 100);
         let thresholds = config.generate_thresholds();
 
         // 起始 0.70，应该生成多层
@@ -209,7 +189,7 @@ mod tests {
 
     #[test]
     fn test_very_high_start_threshold() {
-        let config = TreeSearchConfig::new(0.85, 100);
+        let config = SearchConfig::new(0.85, 100);
         let thresholds = config.generate_thresholds();
 
         // 起始 0.85，空间很小，增量 0.03 或 0.05
@@ -221,7 +201,7 @@ mod tests {
 
     #[test]
     fn test_near_limit_threshold() {
-        let config = TreeSearchConfig::new(0.93, 100);
+        let config = SearchConfig::new(0.93, 100);
         let thresholds = config.generate_thresholds();
 
         // 起始 0.93，只能生成 1-2 层

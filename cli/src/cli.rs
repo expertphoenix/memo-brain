@@ -47,8 +47,8 @@ pub enum Commands {
     Search {
         query: String,
 
-        /// Maximum results to return (max total nodes)
-        #[arg(short = 'n', long, default_value = "5")]
+        /// Maximum results to return
+        #[arg(short = 'n', long, default_value = "10")]
         limit: usize,
 
         #[arg(short = 't', long, default_value = "0.7")]
